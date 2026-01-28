@@ -41,13 +41,15 @@ public class ApplicationDbContext : DbContext
 
     private void SeedData(ModelBuilder modelBuilder)
     {
+        var baseDate = new DateTime(2026, 1, 21, 13, 48, 13, DateTimeKind.Utc);
+        
         // Seed Tags
         modelBuilder.Entity<Tag>().HasData(
-            new Tag { Id = 1, Name = "Database", Color = "#3498db", CreatedAt = DateTime.UtcNow },
-            new Tag { Id = 2, Name = "API", Color = "#e74c3c", CreatedAt = DateTime.UtcNow },
-            new Tag { Id = 3, Name = "Network", Color = "#f39c12", CreatedAt = DateTime.UtcNow },
-            new Tag { Id = 4, Name = "Security", Color = "#9b59b6", CreatedAt = DateTime.UtcNow },
-            new Tag { Id = 5, Name = "Performance", Color = "#1abc9c", CreatedAt = DateTime.UtcNow }
+            new Tag { Id = 1, Name = "Database", Color = "#3498db", CreatedAt = baseDate },
+            new Tag { Id = 2, Name = "API", Color = "#e74c3c", CreatedAt = baseDate },
+            new Tag { Id = 3, Name = "Network", Color = "#f39c12", CreatedAt = baseDate },
+            new Tag { Id = 4, Name = "Security", Color = "#9b59b6", CreatedAt = baseDate },
+            new Tag { Id = 5, Name = "Performance", Color = "#1abc9c", CreatedAt = baseDate }
         );
 
         // Seed Templates
@@ -58,7 +60,7 @@ public class ApplicationDbContext : DbContext
                 Name = "Standard Incident Report",
                 Type = "Incident",
                 Content = "## Incident Summary\n\n## Timeline\n\n## Impact\n\n## Root Cause\n\n## Action Items",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = baseDate
             },
             new Template
             {
@@ -66,7 +68,7 @@ public class ApplicationDbContext : DbContext
                 Name = "Quick Action Item",
                 Type = "ActionItem",
                 Content = "### Task\n\n### Expected Outcome\n\n### Dependencies",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = baseDate
             }
         );
 
@@ -77,9 +79,9 @@ public class ApplicationDbContext : DbContext
                 Id = 1,
                 Title = "Database Connection Pool Exhaustion",
                 Description = "Production database connection pool was exhausted causing application timeouts",
-                OccurredAt = DateTime.UtcNow.AddDays(-7),
-                CreatedAt = DateTime.UtcNow.AddDays(-7),
-                ResolvedAt = DateTime.UtcNow.AddDays(-6),
+                OccurredAt = baseDate,
+                CreatedAt = baseDate,
+                ResolvedAt = baseDate.AddDays(1),
                 Severity = "Critical",
                 Status = "Resolved",
                 RootCause = "Connection pool size was too small for peak traffic. Connections were not being properly released.",
@@ -90,8 +92,8 @@ public class ApplicationDbContext : DbContext
                 Id = 2,
                 Title = "API Rate Limit Exceeded",
                 Description = "Third-party API rate limits were exceeded during batch processing",
-                OccurredAt = DateTime.UtcNow.AddDays(-3),
-                CreatedAt = DateTime.UtcNow.AddDays(-3),
+                OccurredAt = baseDate.AddDays(4),
+                CreatedAt = baseDate.AddDays(4),
                 Severity = "High",
                 Status = "Investigating",
                 Impact = "Batch job delayed by 2 hours. No direct user impact."
@@ -101,8 +103,8 @@ public class ApplicationDbContext : DbContext
                 Id = 3,
                 Title = "Slow Page Load Performance",
                 Description = "Users reported significantly slower page load times on the dashboard",
-                OccurredAt = DateTime.UtcNow.AddDays(-1),
-                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                OccurredAt = baseDate.AddDays(6),
+                CreatedAt = baseDate.AddDays(6),
                 Severity = "Medium",
                 Status = "Open",
                 Impact = "Dashboard load times increased from 1s to 5s average"
@@ -115,7 +117,7 @@ public class ApplicationDbContext : DbContext
             {
                 Id = 1,
                 IncidentId = 1,
-                OccurredAt = DateTime.UtcNow.AddDays(-7),
+                OccurredAt = baseDate,
                 Description = "First reports of timeout errors in application logs",
                 Author = "Monitoring System"
             },
@@ -123,7 +125,7 @@ public class ApplicationDbContext : DbContext
             {
                 Id = 2,
                 IncidentId = 1,
-                OccurredAt = DateTime.UtcNow.AddDays(-7).AddMinutes(10),
+                OccurredAt = baseDate.AddMinutes(10),
                 Description = "Database connection pool exhaustion confirmed",
                 Author = "DevOps Team"
             },
@@ -131,7 +133,7 @@ public class ApplicationDbContext : DbContext
             {
                 Id = 3,
                 IncidentId = 1,
-                OccurredAt = DateTime.UtcNow.AddDays(-7).AddMinutes(30),
+                OccurredAt = baseDate.AddMinutes(30),
                 Description = "Emergency fix deployed - increased connection pool size",
                 Author = "DevOps Team"
             },
@@ -139,7 +141,7 @@ public class ApplicationDbContext : DbContext
             {
                 Id = 4,
                 IncidentId = 2,
-                OccurredAt = DateTime.UtcNow.AddDays(-3),
+                OccurredAt = baseDate.AddDays(4),
                 Description = "Batch job failed with rate limit error",
                 Author = "System"
             },
@@ -147,7 +149,7 @@ public class ApplicationDbContext : DbContext
             {
                 Id = 5,
                 IncidentId = 3,
-                OccurredAt = DateTime.UtcNow.AddDays(-1),
+                OccurredAt = baseDate.AddDays(6),
                 Description = "Multiple user complaints about slow dashboard",
                 Author = "Support Team"
             }
@@ -164,8 +166,8 @@ public class ApplicationDbContext : DbContext
                 Status = "Completed",
                 Priority = "High",
                 AssignedTo = "Backend Team",
-                CreatedAt = DateTime.UtcNow.AddDays(-6),
-                CompletedAt = DateTime.UtcNow.AddDays(-5)
+                CreatedAt = baseDate.AddDays(1),
+                CompletedAt = baseDate.AddDays(2)
             },
             new ActionItem
             {
@@ -176,8 +178,8 @@ public class ApplicationDbContext : DbContext
                 Status = "In Progress",
                 Priority = "High",
                 AssignedTo = "DevOps Team",
-                DueDate = DateTime.UtcNow.AddDays(7),
-                CreatedAt = DateTime.UtcNow.AddDays(-6)
+                DueDate = baseDate.AddDays(14),
+                CreatedAt = baseDate.AddDays(1)
             },
             new ActionItem
             {
@@ -188,8 +190,8 @@ public class ApplicationDbContext : DbContext
                 Status = "Open",
                 Priority = "High",
                 AssignedTo = "Backend Team",
-                DueDate = DateTime.UtcNow.AddDays(5),
-                CreatedAt = DateTime.UtcNow.AddDays(-3)
+                DueDate = baseDate.AddDays(12),
+                CreatedAt = baseDate.AddDays(4)
             },
             new ActionItem
             {
@@ -200,7 +202,7 @@ public class ApplicationDbContext : DbContext
                 Status = "In Progress",
                 Priority = "Medium",
                 AssignedTo = "Backend Team",
-                CreatedAt = DateTime.UtcNow.AddDays(-1)
+                CreatedAt = baseDate.AddDays(6)
             }
         );
 
