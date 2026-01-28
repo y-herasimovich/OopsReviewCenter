@@ -1,0 +1,211 @@
+@page "/incidents/new"
+@using OopsReviewCenter.Data
+@using OopsReviewCenter.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+<PageTitle>New Incident - OopsReviewCenter</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Create New Incident</h1>
+    <a href="/incidents" class="btn btn-secondary">Cancel</a>
+</div>
+
+<EditForm Model="@incident" OnValidSubmit="@HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title *</label>
+                        <InputText @bind-Value="incident.Title" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description *</label>
+                        <InputTextArea @bind-Value="incident.Description" class="form-control" rows="4" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Severity *</label>
+                            <InputSelect @bind-Value="incident.Severity" class="form-select">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status *</label>
+                            <InputSelect @bind-Value="incident.Status" class="form-select">
+                                <option value="Open">Open</option>
+                                <option value="Investigating">Investigating</option>
+                                <option value="Resolved">Resolved</option>
+                                <option value="Closed">Closed</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Occurred At *</label>
+                        <InputDate @bind-Value="occurredAtDate" class="form-control" />
+                        <InputText @bind-Value="occurredAtTime" type="time" class="form-control mt-2" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Impact</label>
+                        <InputTextArea @bind-Value="incident.Impact" class="form-control" rows="3" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Root Cause</label>
+                        <InputTextArea @bind-Value="incident.RootCause" class="form-control" rows="3" />
+                    </div>
+
+                    @if (availableTags != null && availableTags.Any())
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Tags</label>
+                            <div>
+                                @foreach (var tag in availableTags)
+                                {
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" 
+                                               id="tag-@tag.Id" 
+                                               checked="@selectedTagIds.Contains(tag.Id)"
+                                               @onchange="@(() => ToggleTag(tag.Id))" />
+                                        <label class="form-check-label" for="tag-@tag.Id">
+                                            <span class="badge" style="background-color: @tag.Color;">@tag.Name</span>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Create Incident</button>
+            <a href="/incidents" class="btn btn-secondary">Cancel</a>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Timeline Events</h5>
+                </div>
+                <div class="card-body">
+                    @foreach (var evt in timelineEvents)
+                    {
+                        <div class="mb-3 border-bottom pb-2">
+                            <input type="datetime-local" @bind="evt.OccurredAt" class="form-control mb-2" />
+                            <textarea @bind="evt.Description" class="form-control mb-2" rows="2" placeholder="Description"></textarea>
+                            <input type="text" @bind="evt.Author" class="form-control mb-2" placeholder="Author" />
+                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveTimelineEvent(evt)">Remove</button>
+                        </div>
+                    }
+                    <button type="button" class="btn btn-sm btn-secondary" @onclick="AddTimelineEvent">
+                        Add Timeline Event
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    private Incident incident = new() 
+    { 
+        Severity = "Medium", 
+        Status = "Open",
+        CreatedAt = DateTime.UtcNow
+    };
+    
+    private DateTime occurredAtDate = DateTime.Today;
+    private string occurredAtTime = DateTime.Now.ToString("HH:mm");
+    private List<Tag>? availableTags;
+    private HashSet<int> selectedTagIds = new();
+    private List<TimelineEvent> timelineEvents = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        availableTags = await DbContext.Tags.ToListAsync();
+        
+        // Add initial timeline event
+        timelineEvents.Add(new TimelineEvent 
+        { 
+            OccurredAt = DateTime.UtcNow,
+            Description = "",
+            Author = "System"
+        });
+    }
+
+    private void ToggleTag(int tagId)
+    {
+        if (selectedTagIds.Contains(tagId))
+            selectedTagIds.Remove(tagId);
+        else
+            selectedTagIds.Add(tagId);
+    }
+
+    private void AddTimelineEvent()
+    {
+        timelineEvents.Add(new TimelineEvent 
+        { 
+            OccurredAt = DateTime.UtcNow,
+            Description = "",
+            Author = ""
+        });
+    }
+
+    private void RemoveTimelineEvent(TimelineEvent evt)
+    {
+        timelineEvents.Remove(evt);
+    }
+
+    private async Task HandleSubmit()
+    {
+        // Combine date and time
+        if (TimeSpan.TryParse(occurredAtTime, out var time))
+        {
+            incident.OccurredAt = occurredAtDate.Date + time;
+        }
+        else
+        {
+            incident.OccurredAt = occurredAtDate;
+        }
+
+        incident.CreatedAt = DateTime.UtcNow;
+
+        // Add incident to database
+        DbContext.Incidents.Add(incident);
+        await DbContext.SaveChangesAsync();
+
+        // Add tags
+        foreach (var tagId in selectedTagIds)
+        {
+            DbContext.IncidentTags.Add(new IncidentTag 
+            { 
+                IncidentId = incident.Id, 
+                TagId = tagId 
+            });
+        }
+
+        // Add timeline events
+        foreach (var evt in timelineEvents.Where(e => !string.IsNullOrWhiteSpace(e.Description)))
+        {
+            evt.IncidentId = incident.Id;
+            DbContext.TimelineEvents.Add(evt);
+        }
+
+        await DbContext.SaveChangesAsync();
+
+        Navigation.NavigateTo($"/incidents/{incident.Id}");
+    }
+}

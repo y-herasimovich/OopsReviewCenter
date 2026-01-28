@@ -1,0 +1,180 @@
+@page "/admin/templates"
+@layout AdminLayout
+@using OopsReviewCenter.Data
+@using OopsReviewCenter.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Templates - Admin - OopsReviewCenter</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Templates</h1>
+    <button class="btn btn-primary" @onclick="ShowAddTemplate">
+        <span class="bi bi-plus"></span> New Template
+    </button>
+</div>
+
+@if (templates == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!templates.Any() && !showAddForm)
+{
+    <div class="alert alert-info">No templates found. Create your first template!</div>
+}
+else
+{
+    @if (showAddForm)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>@(editingTemplate == null ? "Add New Template" : "Edit Template")</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="@currentTemplate" OnValidSubmit="@SaveTemplate">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <InputText @bind-Value="currentTemplate.Name" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <InputSelect @bind-Value="currentTemplate.Type" class="form-select">
+                            <option value="Incident">Incident</option>
+                            <option value="ActionItem">Action Item</option>
+                            <option value="Timeline">Timeline</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Content</label>
+                        <InputTextArea @bind-Value="currentTemplate.Content" class="form-control" rows="10" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    @if (templates.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var template in templates)
+                    {
+                        <tr>
+                            <td>@template.Id</td>
+                            <td>@template.Name</td>
+                            <td><span class="badge bg-info">@template.Type</span></td>
+                            <td>@template.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" @onclick="() => EditTemplate(template)">
+                                    Edit
+                                </button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteTemplate(template.Id)">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private List<Template>? templates;
+    private Template currentTemplate = new();
+    private Template? editingTemplate;
+    private bool showAddForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTemplates();
+    }
+
+    private async Task LoadTemplates()
+    {
+        templates = await DbContext.Templates
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+
+    private void ShowAddTemplate()
+    {
+        editingTemplate = null;
+        currentTemplate = new Template { Type = "Incident" };
+        showAddForm = true;
+    }
+
+    private void EditTemplate(Template template)
+    {
+        editingTemplate = template;
+        currentTemplate = new Template
+        {
+            Id = template.Id,
+            Name = template.Name,
+            Type = template.Type,
+            Content = template.Content,
+            CreatedAt = template.CreatedAt
+        };
+        showAddForm = true;
+    }
+
+    private async Task SaveTemplate()
+    {
+        if (editingTemplate != null)
+        {
+            // Update existing template
+            var template = await DbContext.Templates.FindAsync(editingTemplate.Id);
+            if (template != null)
+            {
+                template.Name = currentTemplate.Name;
+                template.Type = currentTemplate.Type;
+                template.Content = currentTemplate.Content;
+                template.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+        else
+        {
+            // Add new template
+            currentTemplate.CreatedAt = DateTime.UtcNow;
+            DbContext.Templates.Add(currentTemplate);
+        }
+
+        await DbContext.SaveChangesAsync();
+        await LoadTemplates();
+        CancelEdit();
+    }
+
+    private async Task DeleteTemplate(int id)
+    {
+        var template = await DbContext.Templates.FindAsync(id);
+        if (template != null)
+        {
+            DbContext.Templates.Remove(template);
+            await DbContext.SaveChangesAsync();
+            await LoadTemplates();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        showAddForm = false;
+        editingTemplate = null;
+        currentTemplate = new Template();
+    }
+}

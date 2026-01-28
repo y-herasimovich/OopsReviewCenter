@@ -1,0 +1,202 @@
+@page "/actions"
+@using OopsReviewCenter.Data
+@using OopsReviewCenter.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Action Items - OopsReviewCenter</PageTitle>
+
+<h1>Action Items</h1>
+
+@if (actionItems == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="mb-3">
+        <label class="form-label">Filter by Status:</label>
+        <select class="form-select" @onchange="FilterByStatus" style="width: 200px;">
+            <option value="">All</option>
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+        </select>
+    </div>
+
+    @if (!filteredActionItems.Any())
+    {
+        <div class="alert alert-info">No action items found.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Incident</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Assigned To</th>
+                        <th>Due Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var action in filteredActionItems)
+                    {
+                        <tr>
+                            <td>@action.Id</td>
+                            <td>@action.Title</td>
+                            <td>
+                                @if (action.IncidentId.HasValue)
+                                {
+                                    <a href="/incidents/@action.IncidentId">Incident #@action.IncidentId</a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">N/A</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge bg-@GetPriorityColor(action.Priority)">@action.Priority</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-@GetStatusColor(action.Status)">@action.Status</span>
+                            </td>
+                            <td>@(action.AssignedTo ?? "Unassigned")</td>
+                            <td>
+                                @if (action.DueDate.HasValue)
+                                {
+                                    var isOverdue = action.DueDate.Value < DateTime.UtcNow && action.Status != "Completed";
+                                    <span class="@(isOverdue ? "text-danger fw-bold" : "")">
+                                        @action.DueDate.Value.ToString("yyyy-MM-dd")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (action.Status != "Completed" && action.Status != "Cancelled")
+                                {
+                                    <button class="btn btn-sm btn-success" @onclick="() => CompleteAction(action.Id)">
+                                        Complete
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <h3 class="mt-4">Summary by Status</h3>
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card text-white bg-danger mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Open</h5>
+                    <p class="card-text display-6">@actionItems.Count(a => a.Status == "Open")</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">In Progress</h5>
+                    <p class="card-text display-6">@actionItems.Count(a => a.Status == "In Progress")</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Completed</h5>
+                    <p class="card-text display-6">@actionItems.Count(a => a.Status == "Completed")</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Cancelled</h5>
+                    <p class="card-text display-6">@actionItems.Count(a => a.Status == "Cancelled")</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ActionItem>? actionItems;
+    private List<ActionItem> filteredActionItems = new();
+    private string selectedStatus = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadActionItems();
+    }
+
+    private async Task LoadActionItems()
+    {
+        actionItems = await DbContext.ActionItems
+            .Include(a => a.Incident)
+            .OrderBy(a => a.Status == "Open" ? 0 : a.Status == "In Progress" ? 1 : 2)
+            .ThenBy(a => a.Priority == "High" ? 0 : a.Priority == "Medium" ? 1 : 2)
+            .ThenBy(a => a.DueDate)
+            .ToListAsync();
+        
+        filteredActionItems = actionItems;
+    }
+
+    private void FilterByStatus(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? "";
+        
+        if (actionItems == null) return;
+
+        if (string.IsNullOrEmpty(selectedStatus))
+        {
+            filteredActionItems = actionItems;
+        }
+        else
+        {
+            filteredActionItems = actionItems.Where(a => a.Status == selectedStatus).ToList();
+        }
+    }
+
+    private async Task CompleteAction(int actionId)
+    {
+        var action = await DbContext.ActionItems.FindAsync(actionId);
+        if (action != null)
+        {
+            action.Status = "Completed";
+            action.CompletedAt = DateTime.UtcNow;
+            await DbContext.SaveChangesAsync();
+            await LoadActionItems();
+        }
+    }
+
+    private string GetPriorityColor(string priority) => priority switch
+    {
+        "High" => "danger",
+        "Medium" => "warning",
+        "Low" => "secondary",
+        _ => "secondary"
+    };
+
+    private string GetStatusColor(string status) => status switch
+    {
+        "Open" => "danger",
+        "In Progress" => "warning",
+        "Completed" => "success",
+        "Cancelled" => "secondary",
+        _ => "secondary"
+    };
+}
