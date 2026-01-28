@@ -1,0 +1,122 @@
+@page "/incidents"
+@using OopsReviewCenter.Data
+@using OopsReviewCenter.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+<PageTitle>Incidents - OopsReviewCenter</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Incidents</h1>
+    <a href="/incidents/new" class="btn btn-primary">
+        <span class="bi bi-plus"></span> New Incident
+    </a>
+</div>
+
+@if (incidents == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!incidents.Any())
+{
+    <div class="alert alert-info">No incidents found. Create your first incident!</div>
+}
+else
+{
+    <div class="mb-3">
+        <label class="form-label">Filter by Status:</label>
+        <select class="form-select" @onchange="FilterByStatus" style="width: 200px;">
+            <option value="">All</option>
+            <option value="Open">Open</option>
+            <option value="Investigating">Investigating</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+        </select>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Occurred At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var incident in filteredIncidents)
+                {
+                    <tr>
+                        <td>@incident.Id</td>
+                        <td>
+                            <a href="/incidents/@incident.Id">@incident.Title</a>
+                        </td>
+                        <td>
+                            <span class="badge bg-@GetSeverityColor(incident.Severity)">@incident.Severity</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-@GetStatusColor(incident.Status)">@incident.Status</span>
+                        </td>
+                        <td>@incident.OccurredAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            <a href="/incidents/@incident.Id" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Incident>? incidents;
+    private List<Incident> filteredIncidents = new();
+    private string selectedStatus = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        incidents = await DbContext.Incidents
+            .OrderByDescending(i => i.OccurredAt)
+            .ToListAsync();
+        
+        filteredIncidents = incidents;
+    }
+
+    private void FilterByStatus(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? "";
+        
+        if (incidents == null) return;
+
+        if (string.IsNullOrEmpty(selectedStatus))
+        {
+            filteredIncidents = incidents;
+        }
+        else
+        {
+            filteredIncidents = incidents.Where(i => i.Status == selectedStatus).ToList();
+        }
+    }
+
+    private string GetSeverityColor(string severity) => severity switch
+    {
+        "Critical" => "danger",
+        "High" => "warning",
+        "Medium" => "info",
+        "Low" => "secondary",
+        _ => "secondary"
+    };
+
+    private string GetStatusColor(string status) => status switch
+    {
+        "Open" => "danger",
+        "Investigating" => "warning",
+        "Resolved" => "success",
+        "Closed" => "secondary",
+        _ => "secondary"
+    };
+}

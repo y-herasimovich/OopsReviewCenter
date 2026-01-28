@@ -1,0 +1,211 @@
+@page "/incidents/{id:int}"
+@using OopsReviewCenter.Data
+@using OopsReviewCenter.Models
+@using OopsReviewCenter.Services
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject MarkdownExportService ExportService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Incident Details - OopsReviewCenter</PageTitle>
+
+@if (incident == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>@incident.Title</h1>
+        <div>
+            <button class="btn btn-success" @onclick="ExportToMarkdown">
+                <span class="bi bi-download"></span> Export Markdown
+            </button>
+            <a href="/incidents" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Incident Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">ID</dt>
+                        <dd class="col-sm-9">@incident.Id</dd>
+
+                        <dt class="col-sm-3">Severity</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge bg-@GetSeverityColor(incident.Severity)">@incident.Severity</span>
+                        </dd>
+
+                        <dt class="col-sm-3">Status</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge bg-@GetStatusColor(incident.Status)">@incident.Status</span>
+                        </dd>
+
+                        <dt class="col-sm-3">Occurred At</dt>
+                        <dd class="col-sm-9">@incident.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
+
+                        <dt class="col-sm-3">Created At</dt>
+                        <dd class="col-sm-9">@incident.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
+
+                        @if (incident.ResolvedAt.HasValue)
+                        {
+                            <dt class="col-sm-3">Resolved At</dt>
+                            <dd class="col-sm-9">@incident.ResolvedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
+                        }
+
+                        @if (incident.IncidentTags.Any())
+                        {
+                            <dt class="col-sm-3">Tags</dt>
+                            <dd class="col-sm-9">
+                                @foreach (var tag in incident.IncidentTags)
+                                {
+                                    <span class="badge" style="background-color: @tag.Tag.Color; margin-right: 5px;">
+                                        @tag.Tag.Name
+                                    </span>
+                                }
+                            </dd>
+                        }
+                    </dl>
+
+                    <h6>Description</h6>
+                    <p>@incident.Description</p>
+
+                    @if (!string.IsNullOrEmpty(incident.Impact))
+                    {
+                        <h6>Impact</h6>
+                        <p>@incident.Impact</p>
+                    }
+
+                    @if (!string.IsNullOrEmpty(incident.RootCause))
+                    {
+                        <h6>Root Cause</h6>
+                        <p>@incident.RootCause</p>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Timeline</h5>
+                </div>
+                <div class="card-body">
+                    @if (incident.TimelineEvents.Any())
+                    {
+                        <div class="timeline">
+                            @foreach (var evt in incident.TimelineEvents.OrderBy(e => e.OccurredAt))
+                            {
+                                <div class="timeline-item mb-3">
+                                    <strong>@evt.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss")</strong>
+                                    <p>@evt.Description</p>
+                                    @if (!string.IsNullOrEmpty(evt.Author))
+                                    {
+                                        <small class="text-muted">Author: @evt.Author</small>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No timeline events recorded.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Action Items</h5>
+                </div>
+                <div class="card-body">
+                    @if (incident.ActionItems.Any())
+                    {
+                        <div class="list-group">
+                            @foreach (var action in incident.ActionItems)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">@action.Title</h6>
+                                        <small>
+                                            <span class="badge bg-@GetPriorityColor(action.Priority)">@action.Priority</span>
+                                        </small>
+                                    </div>
+                                    <p class="mb-1"><small>Status: @action.Status</small></p>
+                                    @if (!string.IsNullOrEmpty(action.AssignedTo))
+                                    {
+                                        <small class="text-muted">Assigned to: @action.AssignedTo</small>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No action items.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Incident? incident;
+
+    protected override async Task OnInitializedAsync()
+    {
+        incident = await DbContext.Incidents
+            .Include(i => i.TimelineEvents)
+            .Include(i => i.ActionItems)
+            .Include(i => i.IncidentTags)
+            .ThenInclude(it => it.Tag)
+            .FirstOrDefaultAsync(i => i.Id == Id);
+    }
+
+    private async Task ExportToMarkdown()
+    {
+        var markdown = await ExportService.ExportIncidentToMarkdown(Id);
+        var fileName = $"incident-{Id}-{DateTime.UtcNow:yyyyMMdd}.md";
+        
+        // Use JS interop to download the file
+        var bytes = System.Text.Encoding.UTF8.GetBytes(markdown);
+        var base64 = Convert.ToBase64String(bytes);
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private string GetSeverityColor(string severity) => severity switch
+    {
+        "Critical" => "danger",
+        "High" => "warning",
+        "Medium" => "info",
+        "Low" => "secondary",
+        _ => "secondary"
+    };
+
+    private string GetStatusColor(string status) => status switch
+    {
+        "Open" => "danger",
+        "Investigating" => "warning",
+        "Resolved" => "success",
+        "Closed" => "secondary",
+        _ => "secondary"
+    };
+
+    private string GetPriorityColor(string priority) => priority switch
+    {
+        "High" => "danger",
+        "Medium" => "warning",
+        "Low" => "secondary",
+        _ => "secondary"
+    };
+}

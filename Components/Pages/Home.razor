@@ -1,0 +1,151 @@
+﻿@page "/"
+@using OopsReviewCenter.Data
+@using OopsReviewCenter.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Dashboard - OopsReviewCenter</PageTitle>
+
+<h1>Dashboard</h1>
+
+@if (stats != null)
+{
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-danger mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Open Incidents</h5>
+                    <p class="card-text display-4">@stats.OpenIncidents</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Investigating</h5>
+                    <p class="card-text display-4">@stats.InvestigatingIncidents</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Resolved</h5>
+                    <p class="card-text display-4">@stats.ResolvedIncidents</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Action Items</h5>
+                    <p class="card-text display-4">@stats.OpenActionItems</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h3>Recent Incidents</h3>
+            @if (recentIncidents != null && recentIncidents.Any())
+            {
+                <div class="list-group">
+                    @foreach (var incident in recentIncidents)
+                    {
+                        <a href="/incidents/@incident.Id" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">@incident.Title</h5>
+                                <small>
+                                    <span class="badge bg-@GetSeverityColor(incident.Severity)">@incident.Severity</span>
+                                </small>
+                            </div>
+                            <p class="mb-1">@incident.Description</p>
+                            <small>@incident.OccurredAt.ToString("yyyy-MM-dd HH:mm")</small>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+        <div class="col-md-6">
+            <h3>Pending Action Items</h3>
+            @if (pendingActions != null && pendingActions.Any())
+            {
+                <div class="list-group">
+                    @foreach (var action in pendingActions)
+                    {
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">@action.Title</h5>
+                                <small>
+                                    <span class="badge bg-@GetPriorityColor(action.Priority)">@action.Priority</span>
+                                </small>
+                            </div>
+                            @if (!string.IsNullOrEmpty(action.AssignedTo))
+                            {
+                                <p class="mb-1">Assigned to: @action.AssignedTo</p>
+                            }
+                            @if (action.DueDate.HasValue)
+                            {
+                                <small>Due: @action.DueDate.Value.ToString("yyyy-MM-dd")</small>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private DashboardStats? stats;
+    private List<Incident>? recentIncidents;
+    private List<ActionItem>? pendingActions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        stats = new DashboardStats
+        {
+            OpenIncidents = await DbContext.Incidents.CountAsync(i => i.Status == "Open"),
+            InvestigatingIncidents = await DbContext.Incidents.CountAsync(i => i.Status == "Investigating"),
+            ResolvedIncidents = await DbContext.Incidents.CountAsync(i => i.Status == "Resolved"),
+            OpenActionItems = await DbContext.ActionItems.CountAsync(a => a.Status == "Open" || a.Status == "In Progress")
+        };
+
+        recentIncidents = await DbContext.Incidents
+            .OrderByDescending(i => i.OccurredAt)
+            .Take(5)
+            .ToListAsync();
+
+        pendingActions = await DbContext.ActionItems
+            .Where(a => a.Status == "Open" || a.Status == "In Progress")
+            .OrderBy(a => a.Priority)
+            .Take(5)
+            .ToListAsync();
+    }
+
+    private string GetSeverityColor(string severity) => severity switch
+    {
+        "Critical" => "danger",
+        "High" => "warning",
+        "Medium" => "info",
+        "Low" => "secondary",
+        _ => "secondary"
+    };
+
+    private string GetPriorityColor(string priority) => priority switch
+    {
+        "High" => "danger",
+        "Medium" => "warning",
+        "Low" => "secondary",
+        _ => "secondary"
+    };
+
+    private class DashboardStats
+    {
+        public int OpenIncidents { get; set; }
+        public int InvestigatingIncidents { get; set; }
+        public int ResolvedIncidents { get; set; }
+        public int OpenActionItems { get; set; }
+    }
+}
