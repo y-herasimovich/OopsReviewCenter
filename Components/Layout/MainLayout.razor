@@ -10,7 +10,7 @@
         <main>
             <div class="top-row px-4">
                 <AuthorizeView>
-                    <Authorized>
+                    <Authorized Context="auth">
                         <div class="d-flex align-items-center gap-3">
                             <AuthorizeView Policy="AdminFullAccess">
                                 <Authorized>
@@ -18,8 +18,8 @@
                                 </Authorized>
                             </AuthorizeView>
                             <span class="text-muted">
-                                <strong>@context.User.FindFirst("FullName")?.Value</strong>
-                                <span class="badge bg-secondary ms-2">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
+                                <strong>@auth.User.FindFirst("FullName")?.Value</strong>
+                                <span class="badge bg-secondary ms-2">@auth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
                             </span>
                             <a href="/logout" class="btn btn-sm btn-outline-secondary">Sign Out</a>
                         </div>
