@@ -53,13 +53,6 @@ else
 
                         <dt class="col-sm-3">Created At</dt>
                         <dd class="col-sm-9">@incident.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
-
-                        @if (incident.ResolvedAt.HasValue)
-                        {
-                            <dt class="col-sm-3">Resolved At</dt>
-                            <dd class="col-sm-9">@incident.ResolvedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
-                        }
-
                         @if (incident.ResolvedByUser != null)
                         {
                             <dt class="col-sm-3">Resolved By</dt>
@@ -72,11 +65,13 @@ else
                                 {
                                     <span>@incident.ResolvedByUser.Username</span>
                                 }
-                                else
-                                {
-                                    <span>User #@incident.ResolvedByUserId</span>
-                                }
+
                             </dd>
+                        }
+                        @if (incident.ResolvedAt.HasValue)
+                        {
+                            <dt class="col-sm-3">Resolved At</dt>
+                            <dd class="col-sm-9">@incident.ResolvedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
                         }
 
                         @if (incident.IncidentTags.Any())
@@ -189,7 +184,6 @@ else
             .Include(i => i.ActionItems)
             .Include(i => i.IncidentTags)
             .ThenInclude(it => it.Tag)
-            .Include(i => i.ResolvedByUser)
             .FirstOrDefaultAsync(i => i.Id == Id);
     }
 
