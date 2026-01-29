@@ -98,6 +98,13 @@ public class OopsReviewCenterAA
 
             // Create session
             var sessionId = Guid.NewGuid().ToString();
+            
+            // Check for and remove any existing session with the current SessionId cookie (session fixation prevention)
+            if (httpContext.Request.Cookies.TryGetValue("SessionId", out var existingSessionId))
+            {
+                _sessions.TryRemove(existingSessionId, out _);
+            }
+            
             var session = new UserSession
             {
                 UserId = user.UserId,
@@ -114,7 +121,7 @@ public class OopsReviewCenterAA
             httpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = httpContext.Request.IsHttps, // Only set Secure flag for HTTPS
                 SameSite = SameSiteMode.Lax,
                 Expires = DateTimeOffset.UtcNow.AddHours(8)
             });
@@ -172,6 +179,22 @@ public class OopsReviewCenterAA
         }
         
         return session;
+    }
+
+    /// <summary>
+    /// Gets all session data for the current user.
+    /// </summary>
+    /// <param name="httpContext">Current HTTP context</param>
+    /// <returns>Tuple with session data or nulls if not authenticated</returns>
+    public (int? UserId, string? Username, string? FullName, string? RoleName) GetSessionData(HttpContext httpContext)
+    {
+        var session = GetCurrentSession(httpContext);
+        if (session == null)
+        {
+            return (null, null, null, null);
+        }
+        
+        return (session.UserId, session.Username, session.FullName, session.RoleName);
     }
 
     /// <summary>

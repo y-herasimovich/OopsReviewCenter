@@ -16,22 +16,24 @@ public class CustomAuthenticationMiddleware
 
     public async Task InvokeAsync(HttpContext context, OopsReviewCenterAA authService)
     {
-        // Get session data
-        var userId = authService.GetCurrentUserId(context);
+        // Get session data efficiently in one call
+        var (userId, username, fullName, role) = authService.GetSessionData(context);
+        
         if (userId.HasValue)
         {
-            var username = authService.GetCurrentUserName(context);
-            var fullName = authService.GetCurrentUserFullName(context);
-            var role = authService.GetCurrentUserRole(context);
-
             // Create claims and identity
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()),
                 new Claim(ClaimTypes.Name, username ?? userId.Value.ToString()),
-                new Claim(ClaimTypes.Role, role ?? string.Empty),
                 new Claim("FullName", fullName ?? username ?? "User")
             };
+
+            // Only add role claim if role is not null or empty
+            if (!string.IsNullOrEmpty(role))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
 
             var identity = new ClaimsIdentity(claims, "CustomAuth");
             var principal = new ClaimsPrincipal(identity);
