@@ -1,8 +1,12 @@
 @page "/actions"
+@attribute [Authorize(Policy = "CanViewOpsData")]
 @using OopsReviewCenter.Data
 @using OopsReviewCenter.Models
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
 @inject ApplicationDbContext DbContext
+@inject IAuthorizationService AuthorizationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Action Items - OopsReviewCenter</PageTitle>
 
@@ -82,12 +86,16 @@ else
                                 }
                             </td>
                             <td>
-                                @if (action.Status != "Completed" && action.Status != "Cancelled")
-                                {
-                                    <button class="btn btn-sm btn-success" @onclick="() => CompleteAction(action.Id)">
-                                        Complete
-                                    </button>
-                                }
+                                <AuthorizeView Policy="CanEditOpsData">
+                                    <Authorized>
+                                        @if (action.Status != "Completed" && action.Status != "Cancelled")
+                                        {
+                                            <button class="btn btn-sm btn-success" @onclick="() => CompleteAction(action.Id)">
+                                                Complete
+                                            </button>
+                                        }
+                                    </Authorized>
+                                </AuthorizeView>
                             </td>
                         </tr>
                     }
@@ -173,6 +181,16 @@ else
 
     private async Task CompleteAction(int actionId)
     {
+        // Server-side authorization check
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var authResult = await AuthorizationService.AuthorizeAsync(authState.User, "CanEditOpsData");
+        
+        if (!authResult.Succeeded)
+        {
+            // User doesn't have permission - silently ignore or show error
+            return;
+        }
+
         var action = await DbContext.ActionItems.FindAsync(actionId);
         if (action != null)
         {

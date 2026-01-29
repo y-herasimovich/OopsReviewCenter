@@ -1,4 +1,5 @@
 @page "/incidents"
+@attribute [Authorize(Policy = "CanViewOpsData")]
 @using OopsReviewCenter.Data
 @using OopsReviewCenter.Models
 @using Microsoft.EntityFrameworkCore
@@ -9,9 +10,13 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Incidents</h1>
-    <a href="/incidents/new" class="btn btn-primary">
-        <span class="bi bi-plus"></span> New Incident
-    </a>
+    <AuthorizeView Policy="CanEditOpsData">
+        <Authorized>
+            <a href="/incidents/new" class="btn btn-primary">
+                <span class="bi bi-plus"></span> New Incident
+            </a>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @if (incidents == null)

@@ -45,23 +45,27 @@ INSERT INTO Roles (RoleId, Name, Description) VALUES
 -- ============================================================================
 -- Users
 -- ============================================================================
--- IMPORTANT: These are DUMMY password hashes for test data only!
--- These users CANNOT authenticate until real password hashes are generated.
--- In production, use the PasswordHasher service to generate proper hashes:
---   var hasher = new PasswordHasher();
---   var salt = hasher.GenerateSalt();
---   var hash = hasher.HashPassword("Password123!", salt);
+-- IMPORTANT: These password hashes are generated using PBKDF2 with 600,000 iterations.
+-- Default test passwords (for development/testing ONLY):
+--   Administrator (admin):       Admin123!
+--   Incident Manager (jsmith):   Manager123!
+--   Incident Manager (mjones):   Manager123!
+--   Developer (bwilson):         Dev123!
+--   Developer (slee):            Dev123!
+--   Developer (dchen):           Dev123!
+--   Viewer (viewer):             Viewer123!
+--   Developer (aparker):         Dev123!
 -- 
--- For testing/demo purposes, you can update these to real hashes after seeding.
+-- These hashes were generated using the PasswordHasher service.
 INSERT INTO Users (UserId, RoleId, Username, Email, FullName, PasswordHash, Salt, IsActive) VALUES
-(1, 1, 'admin', 'admin@oopsreview.com', 'Admin User', 'dummyhash1', 'dummysalt1', 1),
-(2, 2, 'jsmith', 'john.smith@oopsreview.com', 'John Smith', 'dummyhash2', 'dummysalt2', 1),
-(3, 2, 'mjones', 'mary.jones@oopsreview.com', 'Mary Jones', 'dummyhash3', 'dummysalt3', 1),
-(4, 3, 'bwilson', 'bob.wilson@oopsreview.com', 'Bob Wilson', 'dummyhash4', 'dummysalt4', 1),
-(5, 3, 'slee', 'sarah.lee@oopsreview.com', 'Sarah Lee', 'dummyhash5', 'dummysalt5', 1),
-(6, 3, 'dchen', 'david.chen@oopsreview.com', 'David Chen', 'dummyhash6', 'dummysalt6', 1),
-(7, 4, 'viewer', 'viewer@oopsreview.com', 'Guest Viewer', 'dummyhash7', 'dummysalt7', 1),
-(8, 3, 'aparker', 'alice.parker@oopsreview.com', 'Alice Parker', 'dummyhash8', 'dummysalt8', 1);
+(1, 1, 'admin', 'admin@oopsreview.com', 'Admin User', '4ZdtpCjGC6944uCGhPSZUQKHEfnRilsTNRk5oR+qXYg=', '/i3BpDRDCPx+Uz87Dw5jNw==', 1),
+(2, 2, 'jsmith', 'john.smith@oopsreview.com', 'John Smith', 'PoTQxX0cZWEcPuMe2u4PWR+oOnCa2Hr6OYnt65Ky4D8=', 'LfYlbeZjemki0sYX0PlhHQ==', 1),
+(3, 2, 'mjones', 'mary.jones@oopsreview.com', 'Mary Jones', 'dGpmmszoxVszIOxUCxrdVu+w9snosbePEeRQ8dsvLoM=', 'NKzofFCHIGW+8mO5cJznPA==', 1),
+(4, 3, 'bwilson', 'bob.wilson@oopsreview.com', 'Bob Wilson', 'aAeajYhqTzmMfQj2Fzu9tFE9ippbRSe6C+mR5SCHgtM=', 'fvzt5Lzn8bzUutLfT9MYFA==', 1),
+(5, 3, 'slee', 'sarah.lee@oopsreview.com', 'Sarah Lee', 'oEcufoMs2gCRFmwzTBdvGKA884F4V+tJWkmqqnyc3W4=', 'XKqDXf+A8/E8lLEZ+FC1rg==', 1),
+(6, 3, 'dchen', 'david.chen@oopsreview.com', 'David Chen', 'fNkQAIJxAyN5Cl1HD9arHjxMe2IZGVopFCLUVy4AEBE=', 'Rh2/dz9o/gXbEWxuJvKzLg==', 1),
+(7, 4, 'viewer', 'viewer@oopsreview.com', 'Guest Viewer', 'KhY7yDxEF6j+cpFSyHpwBTmnjyeh6Yn2Mt+VldnCCbM=', 'zOMM6vXqeunJ+JHc/va87g==', 1),
+(8, 3, 'aparker', 'alice.parker@oopsreview.com', 'Alice Parker', 'vNRvuAAaOT0hWS7kYFPgU5sYGWEYE7K9c82w0AKnm/Y=', '0Oczvs8rDtCUnWbRU2SkVw==', 1);
 
 -- ============================================================================
 -- Tags

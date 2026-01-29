@@ -1,4 +1,5 @@
 @page "/admin/templates"
+@attribute [Authorize(Policy = "AdminFullAccess")]
 @layout AdminLayout
 @using OopsReviewCenter.Data
 @using OopsReviewCenter.Models
