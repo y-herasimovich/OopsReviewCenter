@@ -1,6 +1,19 @@
 ﻿<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @if (context.User?.Identity?.IsAuthenticated == true)
+                {
+                    <p>You do not have permission to access this resource.</p>
+                    <a href="/access-denied">Go to Access Denied page</a>
+                }
+                else
+                {
+                    <p>You must be logged in to access this resource.</p>
+                    <a href="/login">Go to Login page</a>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

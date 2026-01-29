@@ -23,6 +23,16 @@ builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddScoped<OopsReviewCenterAA>();
 builder.Services.AddHttpContextAccessor();
 
+// Add authentication with cookie scheme
+builder.Services.AddAuthentication("CustomAuth")
+    .AddCookie("CustomAuth", options =>
+    {
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/access-denied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
+
 // Add authorization with policies
 builder.Services.AddAuthorization(options =>
 {
@@ -62,6 +72,9 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
+
+// Add authentication middleware (required for authentication schemes to work)
+app.UseAuthentication();
 
 // Add custom authentication middleware
 app.UseMiddleware<CustomAuthenticationMiddleware>();
