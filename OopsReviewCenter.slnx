@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="OopsReviewCenter.csproj" />
+  <Project Path="OopsReviewCenterTests/OopsReviewCenterTests.csproj" />
+</Solution>

@@ -14,4 +14,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="OopsReviewCenterTests/**" />
+    <EmbeddedResource Remove="OopsReviewCenterTests/**" />
+    <None Remove="OopsReviewCenterTests/**" />
+  </ItemGroup>
+
 </Project>
