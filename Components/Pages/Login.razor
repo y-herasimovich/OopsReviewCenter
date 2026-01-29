@@ -97,9 +97,9 @@
                 localErrorMessage = error;
             }
         }
-        catch (Exception ex)
+        catch
         {
-            localErrorMessage = $"An error occurred during login: {ex.Message}";
+            localErrorMessage = "An unexpected error occurred during login. Please try again later.";
         }
         finally
         {

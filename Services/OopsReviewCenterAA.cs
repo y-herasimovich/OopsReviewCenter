@@ -31,7 +31,7 @@ public class OopsReviewCenterAA
     /// <summary>
     /// Attempts to sign in a user with the provided credentials.
     /// </summary>
-    /// <param name="login">Username or email</param>
+    /// <param name="login">Username</param>
     /// <param name="password">User's password</param>
     /// <param name="httpContext">Current HTTP context</param>
     /// <returns>A tuple indicating success and an optional error message</returns>
@@ -45,6 +45,12 @@ public class OopsReviewCenterAA
                 return (false, "Username and password are required.");
             }
 
+            // Validate HttpContext
+            if (httpContext == null)
+            {
+                return (false, "Unable to authenticate. Please try again.");
+            }
+
             // Find user by username
             var user = await _dbContext.Users
                 .Include(u => u.Role)
@@ -53,6 +59,12 @@ public class OopsReviewCenterAA
             if (user == null)
             {
                 return (false, "Invalid username or password.");
+            }
+
+            // Validate user has a role
+            if (user.Role == null)
+            {
+                return (false, "Unable to authenticate. Please contact an administrator.");
             }
 
             // Check if user is active
@@ -67,9 +79,10 @@ public class OopsReviewCenterAA
             {
                 passwordValid = _passwordHasher.VerifyPassword(password, user.Salt, user.PasswordHash);
             }
-            catch (Exception ex)
+            catch
             {
-                return (false, $"Password verification error: {ex.Message}");
+                // Log the exception internally in production systems
+                return (false, "Unable to verify credentials. Please try again.");
             }
 
             if (!passwordValid)
@@ -101,9 +114,10 @@ public class OopsReviewCenterAA
 
             return (true, null);
         }
-        catch (Exception ex)
+        catch
         {
-            return (false, $"An error occurred during login: {ex.Message}");
+            // Log the exception internally in production systems
+            return (false, "An error occurred during login. Please try again later.");
         }
     }
 
@@ -151,6 +165,7 @@ public class OopsReviewCenterAA
 
     /// <summary>
     /// Gets the current user's ID asynchronously (for compatibility with async workflows).
+    /// Note: This is a thin wrapper around GetCurrentUserId for API consistency.
     /// </summary>
     /// <param name="httpContext">Current HTTP context</param>
     /// <returns>User ID or null if not authenticated</returns>
@@ -172,6 +187,7 @@ public class OopsReviewCenterAA
 
     /// <summary>
     /// Checks if the current user is in the specified role asynchronously.
+    /// Note: This is a thin wrapper around IsInRole for API consistency.
     /// </summary>
     /// <param name="httpContext">Current HTTP context</param>
     /// <param name="roleName">Name of the role to check</param>
@@ -207,6 +223,7 @@ public class OopsReviewCenterAA
 
     /// <summary>
     /// Checks if the current user is authenticated asynchronously.
+    /// Note: This is a thin wrapper around IsAuthenticated for API consistency.
     /// </summary>
     /// <param name="httpContext">Current HTTP context</param>
     /// <returns>True if user is authenticated, false otherwise</returns>
