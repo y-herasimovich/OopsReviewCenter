@@ -21,12 +21,12 @@
 
 The following test users are available (from `scripts/seed-test-data.sql`):
 
-| Username | Password     | Role              | Permissions                          |
-|----------|--------------|-------------------|--------------------------------------|
-| admin    | Admin123!    | Administrator     | Full access (AdminFullAccess)        |
-| jsmith   | Manager123!  | Incident Manager  | Full access (AdminFullAccess)        |
-| bwilson  | Dev123!      | Developer         | Edit operations data (CanEditOpsData)|
-| viewer   | Viewer123!   | Viewer            | Read-only access (CanViewOpsData)    |
+| Username | Role              | Permissions                          |
+|----------|-------------------|--------------------------------------|
+| admin    | Administrator     | Full access (AdminFullAccess)        |
+| jsmith   | Incident Manager  | Full access (AdminFullAccess)        |
+| bwilson  | Developer         | Edit operations data (CanEditOpsData)|
+| viewer   | Viewer            | Read-only access (CanViewOpsData)    |
 
 ## Test Scenarios
 
@@ -41,7 +41,7 @@ The following test users are available (from `scripts/seed-test-data.sql`):
 8. You should be redirected back to `/login`
 
 ### 2. Administrator Access
-**Login as:** `admin` / `Admin123!`
+**Login as:** `admin`
 
 **Verify:**
 - ✅ Can access Dashboard (/)
@@ -55,7 +55,6 @@ The following test users are available (from `scripts/seed-test-data.sql`):
 - ✅ Can access Tags (/admin/tags)
 
 ### 3. Developer Access
-**Login as:** `bwilson` / `Dev123!`
 
 **Verify:**
 - ✅ Can access Dashboard (/)
@@ -69,7 +68,6 @@ The following test users are available (from `scripts/seed-test-data.sql`):
 - ❌ Cannot access /admin/tags (should get Access Denied)
 
 ### 4. Viewer (Read-Only) Access
-**Login as:** `viewer` / `Viewer123!`
 
 **Verify:**
 - ✅ Can access Dashboard (/)
