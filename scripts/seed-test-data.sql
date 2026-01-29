@@ -46,8 +46,16 @@ INSERT INTO Roles (RoleId, Name, Description) VALUES
 -- Users
 -- ============================================================================
 -- IMPORTANT: These password hashes are generated using PasswordHasher service for test data.
+-- WARNING: Do NOT use these passwords or this script in production environments.
+--          These are publicly documented test credentials only.
+-- 
 -- Admin user password: TestAdminPassword!@#$
 -- Viewer user password: PasswordTestUSER!!!
+-- 
+-- NOTE: Only admin and viewer users have functional passwords. Other users 
+--       (jsmith, mjones, bwilson, slee, dchen, aparker) still have dummy 
+--       hashes and cannot authenticate.
+-- 
 -- These hashes were generated using:
 --   var hasher = new PasswordHasher();
 --   var salt = hasher.GenerateSalt();
