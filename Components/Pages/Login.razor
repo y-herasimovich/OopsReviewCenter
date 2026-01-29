@@ -69,10 +69,12 @@
 
     private async Task HandleLogin()
     {
+        // Set loading state and clear errors first - this triggers a render
         isLoggingIn = true;
         errorMessage = null;
         
-        // Use local variable to avoid state changes before SignInAsync
+        // Use local variable to collect errors without triggering additional renders
+        // State changes trigger re-renders which start the response, preventing cookie writes
         string? localErrorMessage = null;
 
         try
@@ -132,18 +134,22 @@
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
-            // Sign in
+            // Sign in - use InvokeAsync to ensure proper synchronization context
             var httpContext = HttpContextAccessor.HttpContext;
             if (httpContext != null)
             {
-                await httpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    claimsPrincipal,
-                    new AuthenticationProperties
-                    {
-                        IsPersistent = true,
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                    });
+                // Perform sign-in on the correct synchronization context
+                await InvokeAsync(async () =>
+                {
+                    await httpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        claimsPrincipal,
+                        new AuthenticationProperties
+                        {
+                            IsPersistent = true,
+                            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                        });
+                });
 
                 // Redirect to home page - forceLoad ensures a full page reload
                 Navigation.NavigateTo("/", forceLoad: true);
@@ -159,7 +165,7 @@
         }
         finally
         {
-            // Update state only after SignInAsync completes
+            // Update state only after SignInAsync completes to avoid triggering render before cookies are set
             if (localErrorMessage != null)
             {
                 errorMessage = localErrorMessage;
