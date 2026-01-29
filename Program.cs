@@ -10,12 +10,16 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // Add database context
+var appDataPath = Path.Combine(Directory.GetCurrentDirectory(), "App_Data");
+Directory.CreateDirectory(appDataPath);
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") 
-        ?? "Data Source=oopsreviewcenter.db"));
+        ?? $"Data Source={Path.Combine(appDataPath, "oopsreviewcenter.db")}"));
 
 // Add services
 builder.Services.AddScoped<MarkdownExportService>();
+builder.Services.AddScoped<PasswordHasher>();
 
 var app = builder.Build();
 
@@ -23,7 +27,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 // Configure the HTTP request pipeline.

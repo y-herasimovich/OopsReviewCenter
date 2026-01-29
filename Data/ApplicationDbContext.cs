@@ -16,12 +16,14 @@ public class ApplicationDbContext : DbContext
     public DbSet<Template> Templates { get; set; } = null!;
     public DbSet<Tag> Tags { get; set; } = null!;
     public DbSet<IncidentTag> IncidentTags { get; set; } = null!;
+    public DbSet<Role> Roles { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configure many-to-many relationship
+        // Configure many-to-many relationship for IncidentTag
         modelBuilder.Entity<IncidentTag>()
             .HasKey(it => new { it.IncidentId, it.TagId });
 
@@ -35,183 +37,18 @@ public class ApplicationDbContext : DbContext
             .WithMany(t => t.IncidentTags)
             .HasForeignKey(it => it.TagId);
 
-        // Seed data
-        SeedData(modelBuilder);
-    }
+        // Configure User-Role relationship
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Role)
+            .WithMany(r => r.Users)
+            .HasForeignKey(u => u.RoleId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    private void SeedData(ModelBuilder modelBuilder)
-    {
-        var baseDate = new DateTime(2026, 1, 21, 13, 48, 13, DateTimeKind.Utc);
-        
-        // Seed Tags
-        modelBuilder.Entity<Tag>().HasData(
-            new Tag { Id = 1, Name = "Database", Color = "#3498db", CreatedAt = baseDate },
-            new Tag { Id = 2, Name = "API", Color = "#e74c3c", CreatedAt = baseDate },
-            new Tag { Id = 3, Name = "Network", Color = "#f39c12", CreatedAt = baseDate },
-            new Tag { Id = 4, Name = "Security", Color = "#9b59b6", CreatedAt = baseDate },
-            new Tag { Id = 5, Name = "Performance", Color = "#1abc9c", CreatedAt = baseDate }
-        );
-
-        // Seed Templates
-        modelBuilder.Entity<Template>().HasData(
-            new Template
-            {
-                Id = 1,
-                Name = "Standard Incident Report",
-                Type = "Incident",
-                Content = "## Incident Summary\n\n## Timeline\n\n## Impact\n\n## Root Cause\n\n## Action Items",
-                CreatedAt = baseDate
-            },
-            new Template
-            {
-                Id = 2,
-                Name = "Quick Action Item",
-                Type = "ActionItem",
-                Content = "### Task\n\n### Expected Outcome\n\n### Dependencies",
-                CreatedAt = baseDate
-            }
-        );
-
-        // Seed Incidents
-        modelBuilder.Entity<Incident>().HasData(
-            new Incident
-            {
-                Id = 1,
-                Title = "Database Connection Pool Exhaustion",
-                Description = "Production database connection pool was exhausted causing application timeouts",
-                OccurredAt = baseDate,
-                CreatedAt = baseDate,
-                ResolvedAt = baseDate.AddDays(1),
-                Severity = "Critical",
-                Status = "Resolved",
-                RootCause = "Connection pool size was too small for peak traffic. Connections were not being properly released.",
-                Impact = "Service was unavailable for 45 minutes. Approximately 1,200 users affected."
-            },
-            new Incident
-            {
-                Id = 2,
-                Title = "API Rate Limit Exceeded",
-                Description = "Third-party API rate limits were exceeded during batch processing",
-                OccurredAt = baseDate.AddDays(4),
-                CreatedAt = baseDate.AddDays(4),
-                Severity = "High",
-                Status = "Investigating",
-                Impact = "Batch job delayed by 2 hours. No direct user impact."
-            },
-            new Incident
-            {
-                Id = 3,
-                Title = "Slow Page Load Performance",
-                Description = "Users reported significantly slower page load times on the dashboard",
-                OccurredAt = baseDate.AddDays(6),
-                CreatedAt = baseDate.AddDays(6),
-                Severity = "Medium",
-                Status = "Open",
-                Impact = "Dashboard load times increased from 1s to 5s average"
-            }
-        );
-
-        // Seed Timeline Events
-        modelBuilder.Entity<TimelineEvent>().HasData(
-            new TimelineEvent
-            {
-                Id = 1,
-                IncidentId = 1,
-                OccurredAt = baseDate,
-                Description = "First reports of timeout errors in application logs",
-                Author = "Monitoring System"
-            },
-            new TimelineEvent
-            {
-                Id = 2,
-                IncidentId = 1,
-                OccurredAt = baseDate.AddMinutes(10),
-                Description = "Database connection pool exhaustion confirmed",
-                Author = "DevOps Team"
-            },
-            new TimelineEvent
-            {
-                Id = 3,
-                IncidentId = 1,
-                OccurredAt = baseDate.AddMinutes(30),
-                Description = "Emergency fix deployed - increased connection pool size",
-                Author = "DevOps Team"
-            },
-            new TimelineEvent
-            {
-                Id = 4,
-                IncidentId = 2,
-                OccurredAt = baseDate.AddDays(4),
-                Description = "Batch job failed with rate limit error",
-                Author = "System"
-            },
-            new TimelineEvent
-            {
-                Id = 5,
-                IncidentId = 3,
-                OccurredAt = baseDate.AddDays(6),
-                Description = "Multiple user complaints about slow dashboard",
-                Author = "Support Team"
-            }
-        );
-
-        // Seed Action Items
-        modelBuilder.Entity<ActionItem>().HasData(
-            new ActionItem
-            {
-                Id = 1,
-                IncidentId = 1,
-                Title = "Review and optimize connection pooling configuration",
-                Description = "Perform comprehensive review of database connection pooling settings",
-                Status = "Completed",
-                Priority = "High",
-                AssignedTo = "Backend Team",
-                CreatedAt = baseDate.AddDays(1),
-                CompletedAt = baseDate.AddDays(2)
-            },
-            new ActionItem
-            {
-                Id = 2,
-                IncidentId = 1,
-                Title = "Add connection pool monitoring and alerts",
-                Description = "Implement monitoring for connection pool metrics",
-                Status = "In Progress",
-                Priority = "High",
-                AssignedTo = "DevOps Team",
-                DueDate = baseDate.AddDays(14),
-                CreatedAt = baseDate.AddDays(1)
-            },
-            new ActionItem
-            {
-                Id = 3,
-                IncidentId = 2,
-                Title = "Implement rate limiting strategy for API calls",
-                Description = "Add exponential backoff and queue system for batch processing",
-                Status = "Open",
-                Priority = "High",
-                AssignedTo = "Backend Team",
-                DueDate = baseDate.AddDays(12),
-                CreatedAt = baseDate.AddDays(4)
-            },
-            new ActionItem
-            {
-                Id = 4,
-                IncidentId = 3,
-                Title = "Profile dashboard queries",
-                Description = "Identify slow database queries on dashboard page",
-                Status = "In Progress",
-                Priority = "Medium",
-                AssignedTo = "Backend Team",
-                CreatedAt = baseDate.AddDays(6)
-            }
-        );
-
-        // Seed Incident Tags
-        modelBuilder.Entity<IncidentTag>().HasData(
-            new IncidentTag { IncidentId = 1, TagId = 1 }, // Database
-            new IncidentTag { IncidentId = 1, TagId = 5 }, // Performance
-            new IncidentTag { IncidentId = 2, TagId = 2 }, // API
-            new IncidentTag { IncidentId = 3, TagId = 5 }  // Performance
-        );
+        // Configure Incident-ResolvedByUser relationship
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.ResolvedByUser)
+            .WithMany(u => u.ResolvedIncidents)
+            .HasForeignKey(i => i.ResolvedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

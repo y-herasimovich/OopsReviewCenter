@@ -13,6 +13,9 @@ public class Incident
     public string? RootCause { get; set; }
     public string? Impact { get; set; }
     
+    public int? ResolvedByUserId { get; set; }
+    public User? ResolvedByUser { get; set; }
+    
     public List<TimelineEvent> TimelineEvents { get; set; } = new();
     public List<ActionItem> ActionItems { get; set; } = new();
     public List<IncidentTag> IncidentTags { get; set; } = new();
