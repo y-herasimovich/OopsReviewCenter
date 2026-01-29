@@ -52,7 +52,21 @@ else
 
                         <dt class="col-sm-3">Created At</dt>
                         <dd class="col-sm-9">@incident.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
+                        @if (incident.ResolvedByUser != null)
+                        {
+                            <dt class="col-sm-3">Resolved By</dt>
+                            <dd class="col-sm-9">
+                                @if (!string.IsNullOrEmpty(incident.ResolvedByUser.FullName))
+                                {
+                                    <span>@incident.ResolvedByUser.FullName</span>
+                                }
+                                else if (!string.IsNullOrEmpty(incident.ResolvedByUser.Username))
+                                {
+                                    <span>@incident.ResolvedByUser.Username</span>
+                                }
 
+                            </dd>
+                        }
                         @if (incident.ResolvedAt.HasValue)
                         {
                             <dt class="col-sm-3">Resolved At</dt>
