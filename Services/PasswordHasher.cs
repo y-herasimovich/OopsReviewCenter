@@ -7,7 +7,7 @@ public class PasswordHasher
 {
     private const int SaltSize = 16; // 128 bits
     private const int HashSize = 32; // 256 bits
-    private const int Iterations = 10000;
+    private const int Iterations = 600000; // OWASP recommended minimum for PBKDF2-SHA256
 
     /// <summary>
     /// Generates a random salt for password hashing
@@ -43,11 +43,16 @@ public class PasswordHasher
     }
 
     /// <summary>
-    /// Verifies a password against a hash and salt
+    /// Verifies a password against a hash and salt using constant-time comparison
     /// </summary>
     public bool VerifyPassword(string password, string salt, string hash)
     {
         string newHash = HashPassword(password, salt);
-        return newHash == hash;
+        
+        // Use constant-time comparison to prevent timing attacks
+        byte[] hashBytes = Convert.FromBase64String(hash);
+        byte[] newHashBytes = Convert.FromBase64String(newHash);
+        
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(hashBytes, newHashBytes);
     }
 }

@@ -19,7 +19,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Add services
 builder.Services.AddScoped<MarkdownExportService>();
-builder.Services.AddScoped<PasswordHasher>();
+builder.Services.AddSingleton<PasswordHasher>();
 
 var app = builder.Build();
 

@@ -16,6 +16,9 @@ public class User
     [MaxLength(100)]
     public string Salt { get; set; } = string.Empty;
     
+    /// <summary>
+    /// User active status. Null indicates pending activation/approval.
+    /// </summary>
     public bool? IsActive { get; set; }
     
     [MaxLength(200)]

@@ -45,8 +45,14 @@ INSERT INTO Roles (RoleId, Name, Description) VALUES
 -- ============================================================================
 -- Users
 -- ============================================================================
--- Password for all users: "Password123!" (hashed with salt)
--- In production, use proper password hashing via PasswordHasher service
+-- IMPORTANT: These are DUMMY password hashes for test data only!
+-- These users CANNOT authenticate until real password hashes are generated.
+-- In production, use the PasswordHasher service to generate proper hashes:
+--   var hasher = new PasswordHasher();
+--   var salt = hasher.GenerateSalt();
+--   var hash = hasher.HashPassword("Password123!", salt);
+-- 
+-- For testing/demo purposes, you can update these to real hashes after seeding.
 INSERT INTO Users (UserId, RoleId, Username, Email, FullName, PasswordHash, Salt, IsActive) VALUES
 (1, 1, 'admin', 'admin@oopsreview.com', 'Admin User', 'dummyhash1', 'dummysalt1', 1),
 (2, 2, 'jsmith', 'john.smith@oopsreview.com', 'John Smith', 'dummyhash2', 'dummysalt2', 1),
