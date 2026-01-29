@@ -184,6 +184,7 @@ else
             .Include(i => i.ActionItems)
             .Include(i => i.IncidentTags)
             .ThenInclude(it => it.Tag)
+            .Include(i => i.ResolvedByUser)
             .FirstOrDefaultAsync(i => i.Id == Id);
     }
 
