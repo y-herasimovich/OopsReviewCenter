@@ -45,22 +45,23 @@ INSERT INTO Roles (RoleId, Name, Description) VALUES
 -- ============================================================================
 -- Users
 -- ============================================================================
--- IMPORTANT: These are DUMMY password hashes for test data only!
--- These users CANNOT authenticate until real password hashes are generated.
--- In production, use the PasswordHasher service to generate proper hashes:
+-- IMPORTANT: These password hashes are generated using PasswordHasher service for test data.
+-- Admin user password: TestAdminPassword!@#$
+-- Viewer user password: PasswordTestUSER!!!
+-- These hashes were generated using:
 --   var hasher = new PasswordHasher();
 --   var salt = hasher.GenerateSalt();
---   var hash = hasher.HashPassword("Password123!", salt);
+--   var hash = hasher.HashPassword(password, salt);
 -- 
--- For testing/demo purposes, you can update these to real hashes after seeding.
+-- For testing/demo purposes, use the passwords above to login.
 INSERT INTO Users (UserId, RoleId, Username, Email, FullName, PasswordHash, Salt, IsActive) VALUES
-(1, 1, 'admin', 'admin@oopsreview.com', 'Admin User', 'dummyhash1', 'dummysalt1', 1),
+(1, 1, 'admin', 'admin@oopsreview.com', 'Admin User', 'iJ6mjfNn/pLbc5ixkUW8a0/OQHHLtZSEUjJdX6+ZGnA=', 'OUnH/j/xvVW/2UY2lr1ghw==', 1),
 (2, 2, 'jsmith', 'john.smith@oopsreview.com', 'John Smith', 'dummyhash2', 'dummysalt2', 1),
 (3, 2, 'mjones', 'mary.jones@oopsreview.com', 'Mary Jones', 'dummyhash3', 'dummysalt3', 1),
 (4, 3, 'bwilson', 'bob.wilson@oopsreview.com', 'Bob Wilson', 'dummyhash4', 'dummysalt4', 1),
 (5, 3, 'slee', 'sarah.lee@oopsreview.com', 'Sarah Lee', 'dummyhash5', 'dummysalt5', 1),
 (6, 3, 'dchen', 'david.chen@oopsreview.com', 'David Chen', 'dummyhash6', 'dummysalt6', 1),
-(7, 4, 'viewer', 'viewer@oopsreview.com', 'Guest Viewer', 'dummyhash7', 'dummysalt7', 1),
+(7, 4, 'viewer', 'viewer@oopsreview.com', 'Guest Viewer', 'deZySnHC+eSCqzx1XUc+HdOFCzOvpc0UhqYXXtj2U5Y=', 'V349IS4Ym9KaKHehuXNutg==', 1),
 (8, 3, 'aparker', 'alice.parker@oopsreview.com', 'Alice Parker', 'dummyhash8', 'dummysalt8', 1);
 
 -- ============================================================================
