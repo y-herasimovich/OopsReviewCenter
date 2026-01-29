@@ -1,4 +1,5 @@
 @page "/incidents/{id:int}"
+@attribute [Authorize(Policy = "CanViewOpsData")]
 @using OopsReviewCenter.Data
 @using OopsReviewCenter.Models
 @using OopsReviewCenter.Services

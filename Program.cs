@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using OopsReviewCenter.Components;
 using OopsReviewCenter.Data;
 using OopsReviewCenter.Services;
@@ -20,6 +21,37 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Add services
 builder.Services.AddScoped<MarkdownExportService>();
 builder.Services.AddSingleton<PasswordHasher>();
+builder.Services.AddHttpContextAccessor();
+
+// Add authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+        options.LogoutPath = "/logout";
+        options.AccessDeniedPath = "/access-denied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
+
+// Add authorization with policies
+builder.Services.AddAuthorization(options =>
+{
+    // Administrator OR Incident Manager can access admin functions
+    options.AddPolicy("AdminFullAccess", policy =>
+        policy.RequireRole("Administrator", "Incident Manager"));
+    
+    // Administrator OR Incident Manager OR Developer can edit operations data
+    options.AddPolicy("CanEditOpsData", policy =>
+        policy.RequireRole("Administrator", "Incident Manager", "Developer"));
+    
+    // Administrator OR Incident Manager OR Developer OR Viewer can view operations data
+    options.AddPolicy("CanViewOpsData", policy =>
+        policy.RequireRole("Administrator", "Incident Manager", "Developer", "Viewer"));
+});
+
+// Enable cascade authentication state
+builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
 
@@ -41,6 +73,11 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
+
+// Add authentication & authorization middleware
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()

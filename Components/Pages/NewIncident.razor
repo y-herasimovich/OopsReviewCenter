@@ -1,4 +1,5 @@
 @page "/incidents/new"
+@attribute [Authorize(Policy = "CanEditOpsData")]
 @using OopsReviewCenter.Data
 @using OopsReviewCenter.Models
 @using Microsoft.EntityFrameworkCore

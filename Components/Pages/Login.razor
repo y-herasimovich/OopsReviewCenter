@@ -1,0 +1,170 @@
+@page "/login"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using System.Security.Claims
+@using OopsReviewCenter.Data
+@using OopsReviewCenter.Models
+@using OopsReviewCenter.Services
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject PasswordHasher PasswordHasher
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>Login - OopsReviewCenter</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">OopsReviewCenter Login</h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <div>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" id="username" class="form-control" value="@username" @oninput="@((e) => username = e.Value?.ToString() ?? string.Empty)" placeholder="Enter username" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" id="password" class="form-control" value="@password" @oninput="@((e) => password = e.Value?.ToString() ?? string.Empty)" placeholder="Enter password" />
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-primary" @onclick="HandleLogin" disabled="@isLoggingIn">
+                                @if (isLoggingIn)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Logging in...</span>
+                                }
+                                else
+                                {
+                                    <span>Login</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Test credentials (Development only):</strong><br />
+                            Administrator: admin / Admin123!<br />
+                            Developer: bwilson / Dev123!<br />
+                            Viewer: viewer / Viewer123!
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string username = string.Empty;
+    private string password = string.Empty;
+    private string? errorMessage;
+    private bool isLoggingIn = false;
+
+    private async Task HandleLogin()
+    {
+        isLoggingIn = true;
+        errorMessage = null;
+
+        try
+        {
+            // Validate input
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            {
+                errorMessage = "Username and password are required.";
+                return;
+            }
+
+            // Find user by username
+            var user = await DbContext.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Username == username);
+
+            if (user == null)
+            {
+                errorMessage = "Invalid username or password.";
+                return;
+            }
+
+            // Check if user is active
+            if (user.IsActive != true)
+            {
+                errorMessage = "Your account is not active. Please contact an administrator.";
+                return;
+            }
+
+            // Verify password
+            bool passwordValid = false;
+            try
+            {
+                passwordValid = PasswordHasher.VerifyPassword(password, user.Salt, user.PasswordHash);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Password verification error: {ex.Message}";
+                return;
+            }
+
+            if (!passwordValid)
+            {
+                errorMessage = "Invalid username or password.";
+                return;
+            }
+
+            // Create claims
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                new Claim(ClaimTypes.Name, user.Username ?? user.UserId.ToString()),
+                new Claim(ClaimTypes.Role, user.Role.Name),
+                new Claim("FullName", user.FullName ?? user.Username ?? "User")
+            };
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
+
+            // Sign in
+            var httpContext = HttpContextAccessor.HttpContext;
+            if (httpContext != null)
+            {
+                await httpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    claimsPrincipal,
+                    new AuthenticationProperties
+                    {
+                        IsPersistent = true,
+                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                    });
+
+                // Redirect to home page
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = "Unable to authenticate. HTTP context not available.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during login: {ex.Message}";
+        }
+        finally
+        {
+            isLoggingIn = false;
+        }
+    }
+}
