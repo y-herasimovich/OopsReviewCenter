@@ -116,8 +116,6 @@ sqlite3 OopsReviewCenter/App_Data/oopsreviewcenter.db
 - Action Items for incident follow-up
 - Incident-Tag relationships
 
-Some incidents have `ResolvedByUserId` set (resolved incidents), while others are still open or investigating.
-
 ## Testing
 
 The solution includes comprehensive unit tests covering:
