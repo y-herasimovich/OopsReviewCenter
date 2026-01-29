@@ -69,15 +69,20 @@
 
     private async Task HandleLogin()
     {
+        // Set loading state and clear errors first - this triggers a render
         isLoggingIn = true;
         errorMessage = null;
+        
+        // Use local variable to collect errors without triggering additional renders
+        // State changes trigger re-renders which start the response, preventing cookie writes
+        string? localErrorMessage = null;
 
         try
         {
             // Validate input
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
-                errorMessage = "Username and password are required.";
+                localErrorMessage = "Username and password are required.";
                 return;
             }
 
@@ -88,14 +93,14 @@
 
             if (user == null)
             {
-                errorMessage = "Invalid username or password.";
+                localErrorMessage = "Invalid username or password.";
                 return;
             }
 
             // Check if user is active
             if (user.IsActive != true)
             {
-                errorMessage = "Your account is not active. Please contact an administrator.";
+                localErrorMessage = "Your account is not active. Please contact an administrator.";
                 return;
             }
 
@@ -107,13 +112,13 @@
             }
             catch (Exception ex)
             {
-                errorMessage = $"Password verification error: {ex.Message}";
+                localErrorMessage = $"Password verification error: {ex.Message}";
                 return;
             }
 
             if (!passwordValid)
             {
-                errorMessage = "Invalid username or password.";
+                localErrorMessage = "Invalid username or password.";
                 return;
             }
 
@@ -129,33 +134,43 @@
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
-            // Sign in
+            // Sign in - use InvokeAsync to ensure proper synchronization context
             var httpContext = HttpContextAccessor.HttpContext;
             if (httpContext != null)
             {
-                await httpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    claimsPrincipal,
-                    new AuthenticationProperties
-                    {
-                        IsPersistent = true,
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                    });
+                // Perform sign-in on the correct synchronization context
+                await InvokeAsync(async () =>
+                {
+                    await httpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        claimsPrincipal,
+                        new AuthenticationProperties
+                        {
+                            IsPersistent = true,
+                            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                        });
+                });
 
-                // Redirect to home page
+                // Redirect to home page - forceLoad ensures a full page reload
                 Navigation.NavigateTo("/", forceLoad: true);
             }
             else
             {
-                errorMessage = "Unable to authenticate. HTTP context not available.";
+                localErrorMessage = "Unable to authenticate. HTTP context not available.";
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"An error occurred during login: {ex.Message}";
+            localErrorMessage = $"An error occurred during login: {ex.Message}";
         }
         finally
         {
+            // Update state after the login attempt completes (success or failure)
+            // This ensures any error messages are displayed without triggering renders during auth
+            if (localErrorMessage != null)
+            {
+                errorMessage = localErrorMessage;
+            }
             isLoggingIn = false;
         }
     }
