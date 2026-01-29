@@ -43,5 +43,12 @@ public class ApplicationDbContext : DbContext
             .WithMany(r => r.Users)
             .HasForeignKey(u => u.RoleId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Configure Incident-ResolvedByUser relationship
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.ResolvedByUser)
+            .WithMany()
+            .HasForeignKey(i => i.ResolvedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
