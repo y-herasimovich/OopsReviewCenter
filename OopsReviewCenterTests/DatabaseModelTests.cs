@@ -273,4 +273,125 @@ public class DatabaseModelTests : IDisposable
         savedEvent.Incident.Should().NotBeNull();
         savedEvent.Incident!.Title.Should().Be("Test Incident");
     }
+
+    [Fact]
+    public void Incident_WithResolvedByUser_ShouldSaveAndLoadCorrectly()
+    {
+        // Arrange
+        var role = new Role { Name = "Admin", Description = "Administrator" };
+        _context.Roles.Add(role);
+        _context.SaveChanges();
+
+        var user = new User
+        {
+            RoleId = role.RoleId,
+            Username = "resolver",
+            Email = "resolver@example.com",
+            PasswordHash = "hashedpassword",
+            Salt = "salt123",
+            IsActive = true
+        };
+        _context.Users.Add(user);
+        _context.SaveChanges();
+
+        var incident = new Incident
+        {
+            Title = "Resolved Incident",
+            Description = "This incident was resolved",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            ResolvedAt = DateTime.UtcNow,
+            Severity = "High",
+            Status = "Resolved",
+            ResolvedByUserId = user.UserId
+        };
+
+        // Act
+        _context.Incidents.Add(incident);
+        _context.SaveChanges();
+
+        // Assert
+        var savedIncident = _context.Incidents
+            .Include(i => i.ResolvedByUser)
+            .FirstOrDefault();
+        
+        savedIncident.Should().NotBeNull();
+        savedIncident!.Title.Should().Be("Resolved Incident");
+        savedIncident.ResolvedByUserId.Should().Be(user.UserId);
+        savedIncident.ResolvedByUser.Should().NotBeNull();
+        savedIncident.ResolvedByUser!.Username.Should().Be("resolver");
+    }
+
+    [Fact]
+    public void Incident_WithoutResolvedByUser_ShouldSaveSuccessfully()
+    {
+        // Arrange
+        var incident = new Incident
+        {
+            Title = "Unresolved Incident",
+            Description = "Still investigating",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Severity = "Medium",
+            Status = "Open"
+        };
+
+        // Act
+        _context.Incidents.Add(incident);
+        _context.SaveChanges();
+
+        // Assert
+        var savedIncident = _context.Incidents
+            .Include(i => i.ResolvedByUser)
+            .FirstOrDefault();
+        
+        savedIncident.Should().NotBeNull();
+        savedIncident!.ResolvedByUserId.Should().BeNull();
+        savedIncident.ResolvedByUser.Should().BeNull();
+    }
+
+    [Fact]
+    public void Incident_WhenUserDeleted_ResolvedByUserIdShouldBeSetToNull()
+    {
+        // Arrange
+        var role = new Role { Name = "Admin", Description = "Administrator" };
+        _context.Roles.Add(role);
+        _context.SaveChanges();
+
+        var user = new User
+        {
+            RoleId = role.RoleId,
+            Username = "tempuser",
+            Email = "temp@example.com",
+            PasswordHash = "hashedpassword",
+            Salt = "salt123",
+            IsActive = true
+        };
+        _context.Users.Add(user);
+        _context.SaveChanges();
+
+        var incident = new Incident
+        {
+            Title = "Test Incident",
+            Description = "Description",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            ResolvedAt = DateTime.UtcNow,
+            Severity = "High",
+            Status = "Resolved",
+            ResolvedByUserId = user.UserId
+        };
+        _context.Incidents.Add(incident);
+        _context.SaveChanges();
+
+        // Act - Delete the user
+        _context.Users.Remove(user);
+        _context.SaveChanges();
+
+        // Assert - Foreign key should be set to null due to SetNull behavior
+        var savedIncident = _context.Incidents.FirstOrDefault();
+        savedIncident.Should().NotBeNull();
+        savedIncident!.ResolvedByUserId.Should().BeNull();
+        savedIncident.ResolvedByUser.Should().BeNull();
+    }
 }

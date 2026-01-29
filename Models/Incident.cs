@@ -13,6 +13,11 @@ public class Incident
     public string? RootCause { get; set; }
     public string? Impact { get; set; }
     
+    // Foreign key for user who resolved the incident
+    public int? ResolvedByUserId { get; set; }
+    
+    // Navigation properties
+    public User? ResolvedByUser { get; set; }
     public List<TimelineEvent> TimelineEvents { get; set; } = new();
     public List<ActionItem> ActionItems { get; set; } = new();
     public List<IncidentTag> IncidentTags { get; set; } = new();
