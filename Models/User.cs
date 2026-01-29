@@ -31,6 +31,4 @@ public class User
     public string? FullName { get; set; }
     
     public Role Role { get; set; } = null!;
-    
-    public List<Incident> ResolvedIncidents { get; set; } = new();
 }

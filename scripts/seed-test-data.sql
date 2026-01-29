@@ -61,7 +61,7 @@ INSERT INTO Users (UserId, RoleId, Username, Email, FullName, PasswordHash, Salt
 (5, 3, 'slee', 'sarah.lee@oopsreview.com', 'Sarah Lee', 'dummyhash5', 'dummysalt5', 1),
 (6, 3, 'dchen', 'david.chen@oopsreview.com', 'David Chen', 'dummyhash6', 'dummysalt6', 1),
 (7, 4, 'viewer', 'viewer@oopsreview.com', 'Guest Viewer', 'dummyhash7', 'dummysalt7', 1),
-(8, 3, 'aparker', 'alice.parker@oopsreview.com', 'Alice Parker', 'dummyhash8', 'dummysalt8', 1);
+(8, 3, 'aparker', 'alice.parker@oopsreview.com', 'Alice Parker', 'dummyhash8', 'dummysalt8');
 
 -- ============================================================================
 -- Tags
@@ -119,7 +119,7 @@ INSERT INTO Templates (Id, Name, Type, Content, CreatedAt) VALUES
 -- ============================================================================
 -- Incidents (30+ realistic incidents)
 -- ============================================================================
-INSERT INTO Incidents (Id, Title, Description, OccurredAt, CreatedAt, ResolvedAt, Severity, Status, RootCause, Impact, ResolvedByUserId) VALUES
+INSERT INTO Incidents (Id, Title, Description, OccurredAt, CreatedAt, ResolvedAt, Severity, Status, RootCause, Impact) VALUES
 (1, 'Database Connection Pool Exhaustion', 'Production database connection pool was exhausted causing application timeouts', 
  datetime('now', '-25 days'), datetime('now', '-25 days'), datetime('now', '-24 days'), 
  'Critical', 'Resolved', 'Connection pool size was too small for peak traffic. Connections were not being properly released.', 
@@ -271,7 +271,7 @@ INSERT INTO Incidents (Id, Title, Description, OccurredAt, CreatedAt, ResolvedAt
 (32, 'Billing Cycle Error', 'Some customers billed twice in same billing period', 
  datetime('now', '-29 days'), datetime('now', '-29 days'), datetime('now', '-28 days'), 
  'Critical', 'Resolved', 'Race condition in billing job when running multiple instances concurrently.', 
- 'Financial impact. Required refunds for 23 customers. Immediate fix and safeguards added.', 2);
+ 'Financial impact. Required refunds for 23 customers. Immediate fix and safeguards added.');
 
 -- ============================================================================
 -- Timeline Events
@@ -399,7 +399,7 @@ INSERT INTO ActionItems (IncidentId, Title, Description, Status, Priority, Assig
 (24, 'Scale background job workers', 'Add additional worker instances to handle queue backlog', 
  'Open', 'High', 'Sarah Lee', datetime('now', '+1 day'), datetime('now', '0 day'), NULL),
 (24, 'Implement job queue monitoring', 'Add dashboards and alerts for job queue depth and processing rates', 
- 'Open', 'High', 'Alice Parker', datetime('now', '+3 days'), datetime('now', '0 day'), NULL);
+ 'Open', 'High', 'Alice Parker', datetime('now', '+3 days'), datetime('now', '0 day'));
 
 -- ============================================================================
 -- Incident Tags (many-to-many relationships)
@@ -468,7 +468,7 @@ INSERT INTO IncidentTags (IncidentId, TagId) VALUES
 -- Incident 31: Security + Backend
 (31, 4), (31, 7),
 -- Incident 32: Backend + Database
-(32, 7), (32, 1);
+(32, 7), (32);
 
 -- ============================================================================
 -- Verification Queries (uncomment to run after seeding)

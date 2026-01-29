@@ -102,24 +102,9 @@ public class DatabaseModelTests : IDisposable
     }
 
     [Fact]
-    public void Incident_ShouldInsertAndQueryWithResolvedByUser()
+    public void Incident_ShouldInsertAndQuery()
     {
         // Arrange
-        var role = new Role { Name = "Resolver", Description = "Can resolve incidents" };
-        _context.Roles.Add(role);
-        _context.SaveChanges();
-
-        var user = new User
-        {
-            RoleId = role.RoleId,
-            Username = "resolver",
-            PasswordHash = "hash",
-            Salt = "salt",
-            IsActive = true
-        };
-        _context.Users.Add(user);
-        _context.SaveChanges();
-
         var incident = new Incident
         {
             Title = "Test Incident",
@@ -128,8 +113,7 @@ public class DatabaseModelTests : IDisposable
             CreatedAt = DateTime.UtcNow,
             Severity = "High",
             Status = "Resolved",
-            ResolvedAt = DateTime.UtcNow,
-            ResolvedByUserId = user.UserId
+            ResolvedAt = DateTime.UtcNow
         };
 
         // Act
@@ -137,19 +121,15 @@ public class DatabaseModelTests : IDisposable
         _context.SaveChanges();
 
         // Assert
-        var savedIncident = _context.Incidents
-            .Include(i => i.ResolvedByUser)
-            .FirstOrDefault();
+        var savedIncident = _context.Incidents.FirstOrDefault();
         
         savedIncident.Should().NotBeNull();
         savedIncident!.Title.Should().Be("Test Incident");
-        savedIncident.ResolvedByUserId.Should().Be(user.UserId);
-        savedIncident.ResolvedByUser.Should().NotBeNull();
-        savedIncident.ResolvedByUser!.Username.Should().Be("resolver");
+        savedIncident.Status.Should().Be("Resolved");
     }
 
     [Fact]
-    public void Incident_WithNullResolvedByUser_ShouldSaveSuccessfully()
+    public void Incident_WithNullResolvedAt_ShouldSaveSuccessfully()
     {
         // Arrange
         var incident = new Incident
@@ -159,8 +139,7 @@ public class DatabaseModelTests : IDisposable
             OccurredAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
             Severity = "Medium",
-            Status = "Open",
-            ResolvedByUserId = null
+            Status = "Open"
         };
 
         // Act
@@ -170,64 +149,7 @@ public class DatabaseModelTests : IDisposable
         // Assert
         var savedIncident = _context.Incidents.FirstOrDefault();
         savedIncident.Should().NotBeNull();
-        savedIncident!.ResolvedByUserId.Should().BeNull();
-        savedIncident.ResolvedByUser.Should().BeNull();
-    }
-
-    [Fact]
-    public void User_CanHaveMultipleResolvedIncidents()
-    {
-        // Arrange
-        var role = new Role { Name = "Resolver", Description = "Can resolve" };
-        _context.Roles.Add(role);
-        _context.SaveChanges();
-
-        var user = new User
-        {
-            RoleId = role.RoleId,
-            Username = "superresolver",
-            PasswordHash = "hash",
-            Salt = "salt",
-            IsActive = true
-        };
-        _context.Users.Add(user);
-        _context.SaveChanges();
-
-        var incident1 = new Incident
-        {
-            Title = "Incident 1",
-            Description = "Description 1",
-            OccurredAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            Severity = "High",
-            Status = "Resolved",
-            ResolvedByUserId = user.UserId
-        };
-
-        var incident2 = new Incident
-        {
-            Title = "Incident 2",
-            Description = "Description 2",
-            OccurredAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            Severity = "Medium",
-            Status = "Resolved",
-            ResolvedByUserId = user.UserId
-        };
-
-        _context.Incidents.AddRange(incident1, incident2);
-        _context.SaveChanges();
-
-        // Act
-        var userWithIncidents = _context.Users
-            .Include(u => u.ResolvedIncidents)
-            .FirstOrDefault(u => u.UserId == user.UserId);
-
-        // Assert
-        userWithIncidents.Should().NotBeNull();
-        userWithIncidents!.ResolvedIncidents.Should().HaveCount(2);
-        userWithIncidents.ResolvedIncidents.Should().Contain(i => i.Title == "Incident 1");
-        userWithIncidents.ResolvedIncidents.Should().Contain(i => i.Title == "Incident 2");
+        savedIncident!.ResolvedAt.Should().BeNull();
     }
 
     [Fact]
