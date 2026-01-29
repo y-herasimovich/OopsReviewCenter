@@ -1,14 +1,7 @@
 @page "/login"
 @rendermode InteractiveServer
-@using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.Authentication.Cookies
-@using System.Security.Claims
-@using OopsReviewCenter.Data
-@using OopsReviewCenter.Models
 @using OopsReviewCenter.Services
-@using Microsoft.EntityFrameworkCore
-@inject ApplicationDbContext DbContext
-@inject PasswordHasher PasswordHasher
+@inject OopsReviewCenterAA AuthService
 @inject NavigationManager Navigation
 @inject IHttpContextAccessor HttpContextAccessor
 
@@ -79,84 +72,29 @@
 
         try
         {
-            // Validate input
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-            {
-                localErrorMessage = "Username and password are required.";
-                return;
-            }
-
-            // Find user by username
-            var user = await DbContext.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Username == username);
-
-            if (user == null)
-            {
-                localErrorMessage = "Invalid username or password.";
-                return;
-            }
-
-            // Check if user is active
-            if (user.IsActive != true)
-            {
-                localErrorMessage = "Your account is not active. Please contact an administrator.";
-                return;
-            }
-
-            // Verify password
-            bool passwordValid = false;
-            try
-            {
-                passwordValid = PasswordHasher.VerifyPassword(password, user.Salt, user.PasswordHash);
-            }
-            catch (Exception ex)
-            {
-                localErrorMessage = $"Password verification error: {ex.Message}";
-                return;
-            }
-
-            if (!passwordValid)
-            {
-                localErrorMessage = "Invalid username or password.";
-                return;
-            }
-
-            // Create claims
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new Claim(ClaimTypes.Name, user.Username ?? user.UserId.ToString()),
-                new Claim(ClaimTypes.Role, user.Role.Name),
-                new Claim("FullName", user.FullName ?? user.Username ?? "User")
-            };
-
-            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
-
-            // Sign in - use InvokeAsync to ensure proper synchronization context
             var httpContext = HttpContextAccessor.HttpContext;
-            if (httpContext != null)
+            if (httpContext == null)
             {
-                // Perform sign-in on the correct synchronization context
-                await InvokeAsync(async () =>
-                {
-                    await httpContext.SignInAsync(
-                        CookieAuthenticationDefaults.AuthenticationScheme,
-                        claimsPrincipal,
-                        new AuthenticationProperties
-                        {
-                            IsPersistent = true,
-                            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                        });
-                });
+                localErrorMessage = "Unable to authenticate. HTTP context not available.";
+                return;
+            }
 
+            // Perform sign-in on the correct synchronization context
+            bool ok = false;
+            string? error = null;
+            await InvokeAsync(async () =>
+            {
+                (ok, error) = await AuthService.SignInAsync(username, password, httpContext);
+            });
+
+            if (ok)
+            {
                 // Redirect to home page - forceLoad ensures a full page reload
                 Navigation.NavigateTo("/", forceLoad: true);
             }
             else
             {
-                localErrorMessage = "Unable to authenticate. HTTP context not available.";
+                localErrorMessage = error;
             }
         }
         catch (Exception ex)
