@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using OopsReviewCenter.Components;
 using OopsReviewCenter.Data;
 using OopsReviewCenter.Services;
@@ -23,17 +22,6 @@ builder.Services.AddScoped<MarkdownExportService>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddScoped<OopsReviewCenterAA>();
 builder.Services.AddHttpContextAccessor();
-
-// Add authentication
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.LoginPath = "/login";
-        options.LogoutPath = "/logout";
-        options.AccessDeniedPath = "/access-denied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
-    });
 
 // Add authorization with policies
 builder.Services.AddAuthorization(options =>
@@ -75,8 +63,10 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
-// Add authentication & authorization middleware
-app.UseAuthentication();
+// Add custom authentication middleware
+app.UseMiddleware<CustomAuthenticationMiddleware>();
+
+// Add authorization middleware
 app.UseAuthorization();
 
 app.UseAntiforgery();

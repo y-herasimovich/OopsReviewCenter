@@ -1,7 +1,4 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using OopsReviewCenter.Data;
 using OopsReviewCenter.Models;
@@ -16,16 +13,25 @@ public class OopsReviewCenterAA
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly PasswordHasher _passwordHasher;
-    private readonly IAuthorizationService _authorizationService;
+    
+    // Simple in-memory session storage
+    private static readonly ConcurrentDictionary<string, UserSession> _sessions = new();
+    
+    private class UserSession
+    {
+        public int UserId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string RoleName { get; set; } = string.Empty;
+        public DateTime ExpiresAt { get; set; }
+    }
 
     public OopsReviewCenterAA(
         ApplicationDbContext dbContext,
-        PasswordHasher passwordHasher,
-        IAuthorizationService authorizationService)
+        PasswordHasher passwordHasher)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
-        _authorizationService = authorizationService;
     }
 
     /// <summary>
@@ -90,27 +96,35 @@ public class OopsReviewCenterAA
                 return (false, "Invalid username or password.");
             }
 
-            // Create claims
-            var claims = new List<Claim>
+            // Create session
+            var sessionId = Guid.NewGuid().ToString();
+            
+            // Check for and remove any existing session with the current SessionId cookie (session fixation prevention)
+            if (httpContext.Request.Cookies.TryGetValue("SessionId", out var existingSessionId))
             {
-                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new Claim(ClaimTypes.Name, user.Username ?? user.UserId.ToString()),
-                new Claim(ClaimTypes.Role, user.Role.Name),
-                new Claim("FullName", user.FullName ?? user.Username ?? "User")
+                _sessions.TryRemove(existingSessionId, out _);
+            }
+            
+            var session = new UserSession
+            {
+                UserId = user.UserId,
+                Username = user.Username ?? user.UserId.ToString(),
+                FullName = user.FullName ?? user.Username ?? "User",
+                RoleName = user.Role.Name,
+                ExpiresAt = DateTime.UtcNow.AddHours(8)
             };
-
-            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
-
-            // Sign in
-            await httpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                claimsPrincipal,
-                new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                });
+            
+            // Store session
+            _sessions[sessionId] = session;
+            
+            // Set session cookie
+            httpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = httpContext.Request.IsHttps, // Only set Secure flag for HTTPS
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTimeOffset.UtcNow.AddHours(8)
+            });
 
             return (true, null);
         }
@@ -125,9 +139,62 @@ public class OopsReviewCenterAA
     /// Signs out the current user.
     /// </summary>
     /// <param name="httpContext">Current HTTP context</param>
-    public async Task SignOutAsync(HttpContext httpContext)
+    public Task SignOutAsync(HttpContext httpContext)
     {
-        await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        // Get session ID from cookie
+        if (httpContext.Request.Cookies.TryGetValue("SessionId", out var sessionId))
+        {
+            // Remove session from storage
+            _sessions.TryRemove(sessionId, out _);
+            
+            // Delete session cookie
+            httpContext.Response.Cookies.Delete("SessionId");
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Gets the current user session.
+    /// </summary>
+    /// <param name="httpContext">Current HTTP context</param>
+    /// <returns>User session or null if not authenticated or expired</returns>
+    private UserSession? GetCurrentSession(HttpContext httpContext)
+    {
+        if (!httpContext.Request.Cookies.TryGetValue("SessionId", out var sessionId))
+        {
+            return null;
+        }
+        
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return null;
+        }
+        
+        // Check if session has expired
+        if (session.ExpiresAt < DateTime.UtcNow)
+        {
+            _sessions.TryRemove(sessionId, out _);
+            return null;
+        }
+        
+        return session;
+    }
+
+    /// <summary>
+    /// Gets all session data for the current user.
+    /// </summary>
+    /// <param name="httpContext">Current HTTP context</param>
+    /// <returns>Tuple with session data or nulls if not authenticated</returns>
+    public (int? UserId, string? Username, string? FullName, string? RoleName) GetSessionData(HttpContext httpContext)
+    {
+        var session = GetCurrentSession(httpContext);
+        if (session == null)
+        {
+            return (null, null, null, null);
+        }
+        
+        return (session.UserId, session.Username, session.FullName, session.RoleName);
     }
 
     /// <summary>
@@ -155,12 +222,8 @@ public class OopsReviewCenterAA
     /// <returns>User ID or null if not authenticated</returns>
     public int? GetCurrentUserId(HttpContext httpContext)
     {
-        var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
-        {
-            return userId;
-        }
-        return null;
+        var session = GetCurrentSession(httpContext);
+        return session?.UserId;
     }
 
     /// <summary>
@@ -182,7 +245,8 @@ public class OopsReviewCenterAA
     /// <returns>True if user is in the role, false otherwise</returns>
     public bool IsInRole(HttpContext httpContext, string roleName)
     {
-        return httpContext.User.IsInRole(roleName);
+        var session = GetCurrentSession(httpContext);
+        return session?.RoleName == roleName;
     }
 
     /// <summary>
@@ -203,12 +267,24 @@ public class OopsReviewCenterAA
     /// <param name="httpContext">Current HTTP context</param>
     /// <param name="policyName">Name of the policy to check</param>
     /// <returns>True if user satisfies the policy, false otherwise</returns>
-    public async Task<bool> HasPolicyAsync(HttpContext httpContext, string policyName)
+    public Task<bool> HasPolicyAsync(HttpContext httpContext, string policyName)
     {
-        var authResult = await _authorizationService.AuthorizeAsync(
-            httpContext.User,
-            policyName);
-        return authResult.Succeeded;
+        var session = GetCurrentSession(httpContext);
+        if (session == null)
+        {
+            return Task.FromResult(false);
+        }
+        
+        // Check policy based on role
+        bool hasPolicy = policyName switch
+        {
+            "AdminFullAccess" => session.RoleName == "Administrator" || session.RoleName == "Incident Manager",
+            "CanEditOpsData" => session.RoleName == "Administrator" || session.RoleName == "Incident Manager" || session.RoleName == "Developer",
+            "CanViewOpsData" => session.RoleName == "Administrator" || session.RoleName == "Incident Manager" || session.RoleName == "Developer" || session.RoleName == "Viewer",
+            _ => false
+        };
+        
+        return Task.FromResult(hasPolicy);
     }
 
     /// <summary>
@@ -218,7 +294,7 @@ public class OopsReviewCenterAA
     /// <returns>True if user is authenticated, false otherwise</returns>
     public bool IsAuthenticated(HttpContext httpContext)
     {
-        return httpContext.User?.Identity?.IsAuthenticated ?? false;
+        return GetCurrentSession(httpContext) != null;
     }
 
     /// <summary>
@@ -239,7 +315,8 @@ public class OopsReviewCenterAA
     /// <returns>User's full name or null if not authenticated</returns>
     public string? GetCurrentUserFullName(HttpContext httpContext)
     {
-        return httpContext.User.FindFirst("FullName")?.Value;
+        var session = GetCurrentSession(httpContext);
+        return session?.FullName;
     }
 
     /// <summary>
@@ -249,7 +326,8 @@ public class OopsReviewCenterAA
     /// <returns>Username or null if not authenticated</returns>
     public string? GetCurrentUserName(HttpContext httpContext)
     {
-        return httpContext.User.FindFirst(ClaimTypes.Name)?.Value;
+        var session = GetCurrentSession(httpContext);
+        return session?.Username;
     }
 
     /// <summary>
@@ -259,6 +337,7 @@ public class OopsReviewCenterAA
     /// <returns>Role name or null if not authenticated</returns>
     public string? GetCurrentUserRole(HttpContext httpContext)
     {
-        return httpContext.User.FindFirst(ClaimTypes.Role)?.Value;
+        var session = GetCurrentSession(httpContext);
+        return session?.RoleName;
     }
 }
