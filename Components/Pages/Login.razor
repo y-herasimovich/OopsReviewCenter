@@ -165,7 +165,8 @@
         }
         finally
         {
-            // Update state only after SignInAsync completes to avoid triggering render before cookies are set
+            // Update state after the login attempt completes (success or failure)
+            // This ensures any error messages are displayed without triggering renders during auth
             if (localErrorMessage != null)
             {
                 errorMessage = localErrorMessage;
