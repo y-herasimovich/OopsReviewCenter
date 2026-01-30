@@ -1,15 +1,26 @@
 # Authentication Testing Guide
 
+## Architecture Overview
+
+OopsReviewCenter now uses a **pure authentication service** design:
+
+- **OopsReviewCenterAA**: Pure application service with no HTTP dependencies
+  - Performs DB lookups and password verification only
+  - Returns `AuthResult` with user data
+  - Provides role permission helpers: `CanView()`, `CanEdit()`, `IsAdminFull()`
+  
+- **Cookie Authentication**: Standard ASP.NET Core cookie authentication
+  - Login page calls `AuthenticateAsync()` and creates claims on success
+  - Uses `CookieAuthenticationDefaults.AuthenticationScheme`
+  - 8-hour sliding expiration
+
 ## Setup
 
-1. Apply database migrations:
-   ```bash
-   dotnet ef database update
-   ```
+1. Database migrations are applied automatically on first run
 
 2. Seed test data:
    ```bash
-   sqlite3 App_Data/oopsreviewcenter.db < scripts/seed-test-data.sql
+   sqlite3 oopsreviewcenter.db < scripts/seed-test-data.sql
    ```
 
 3. Run the application:
@@ -106,20 +117,33 @@ To test inactive user functionality:
 
 ### Password Hashing
 - Passwords are hashed using PBKDF2 with 600,000 iterations
-- 256-bit salt (16 bytes, base64-encoded)
+- 128-bit salt (16 bytes, base64-encoded)
 - 256-bit hash (32 bytes, base64-encoded)
 - Constant-time comparison prevents timing attacks
 
+### Authentication Flow
+1. User submits credentials to `/login`
+2. `OopsReviewCenterAA.AuthenticateAsync()` validates credentials
+   - Loads user from database with EF Core Include(Role)
+   - Checks IsActive status
+   - Verifies password using PasswordHasher
+   - Returns AuthResult with UserId, RoleName, Username, FullName
+3. Login page creates claims (NameIdentifier, Name, Role, FullName)
+4. ASP.NET Core cookie authentication signs user in
+5. Authorization policies enforce role-based access
+
 ### Session Management
-- Cookie-based authentication
+- Cookie-based authentication via ASP.NET Core
 - 8-hour sliding expiration
-- HttpOnly cookies (automatic with ASP.NET Core)
-- Secure cookies in production (HTTPS)
+- HttpOnly cookies (automatic with cookie auth)
+- Secure cookies in HTTPS (automatic)
+- SameSite=Lax for CSRF protection
 
 ### Authorization Enforcement
+- **Policies**: AdminFullAccess, CanEditOpsData, CanViewOpsData
 - **Client-side**: UI controls hidden based on role using `<AuthorizeView>`
-- **Server-side**: All protected pages have `[Authorize]` attributes
-- **API-level**: Write operations check authorization in code
+- **Server-side**: Protected pages use `@attribute [Authorize(Policy="...")]`
+- **Permission Helpers**: `IsAdminFull()`, `CanEdit()`, `CanView()` available for code-level checks
 
 ## Troubleshooting
 
