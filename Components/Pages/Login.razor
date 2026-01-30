@@ -1,6 +1,9 @@
 @page "/login"
 @rendermode InteractiveServer
 @using OopsReviewCenter.Services
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using System.Security.Claims
 @inject OopsReviewCenterAA AuthService
 @inject NavigationManager Navigation
 @inject IHttpContextAccessor HttpContextAccessor
@@ -62,53 +65,65 @@
 
     private async Task HandleLogin()
     {
-        // Set loading state and clear errors first - this triggers a render
+        // Set loading state and clear errors
         isLoggingIn = true;
         errorMessage = null;
-        
-        // Use local variable to collect errors without triggering additional renders
-        // State changes trigger re-renders which start the response, preventing cookie writes
-        string? localErrorMessage = null;
 
         try
         {
             var httpContext = HttpContextAccessor.HttpContext;
             if (httpContext == null)
             {
-                localErrorMessage = "Unable to authenticate. HTTP context not available.";
+                errorMessage = "Unable to authenticate. HTTP context not available.";
                 return;
             }
 
-            // Perform sign-in on the correct synchronization context
-            bool ok = false;
-            string? error = null;
-            await InvokeAsync(async () =>
-            {
-                (ok, error) = await AuthService.SignInAsync(username, password, httpContext);
-            });
+            // Authenticate using pure AA service
+            var authResult = await AuthService.AuthenticateAsync(username, password);
 
-            if (ok)
+            if (!authResult.Success)
             {
-                // Redirect to home page - forceLoad ensures a full page reload
-                Navigation.NavigateTo("/", forceLoad: true);
+                errorMessage = authResult.ErrorMessage;
+                return;
             }
-            else
+
+            // Create claims from auth result
+            var claims = new List<Claim>
             {
-                localErrorMessage = error;
+                new Claim(ClaimTypes.NameIdentifier, authResult.UserId.ToString()),
+                new Claim(ClaimTypes.Name, authResult.Username ?? authResult.UserId.ToString()),
+                new Claim("FullName", authResult.FullName ?? authResult.Username ?? "User")
+            };
+
+            if (!string.IsNullOrEmpty(authResult.RoleName))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, authResult.RoleName));
             }
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            // Sign in with cookie authentication
+            await httpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal,
+                new AuthenticationProperties
+                {
+                    IsPersistent = false,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                });
+
+            // Redirect to home page
+            Navigation.NavigateTo("/", forceLoad: true);
         }
-        catch
+        catch (Exception ex)
         {
-            localErrorMessage = "An unexpected error occurred during login. Please try again later.";
+            errorMessage = "An unexpected error occurred during login. Please try again later.";
+            // In production, log the exception
+            Console.WriteLine($"Login error: {ex.Message}");
         }
         finally
         {
-            // Update state after the login attempt completes (success or failure)
-            // This ensures any error messages are displayed without triggering renders during auth
-            if (localErrorMessage != null)
-            {
-                errorMessage = localErrorMessage;
-            }
             isLoggingIn = false;
         }
     }

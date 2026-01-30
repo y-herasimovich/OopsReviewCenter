@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OopsReviewCenter.Components;
 using OopsReviewCenter.Data;
 using OopsReviewCenter.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,20 +24,19 @@ builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddScoped<OopsReviewCenterAA>();
 builder.Services.AddHttpContextAccessor();
 
-// Add authentication with cookie scheme
-// Note: The cookie authentication handler is configured here to enable authorization challenges
-// (redirects to login/access-denied). However, the actual session management and authentication
-// is performed by CustomAuthenticationMiddleware using a custom SessionId cookie. The timeout
-// and expiration settings below do not affect the actual session lifetime, which is controlled
-// in OopsReviewCenterAA.SignInAsync (8 hours with sliding expiration).
-builder.Services.AddAuthentication("CustomAuth")
-    .AddCookie("CustomAuth", options =>
+// Configure cookie authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
     {
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/access-denied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
     });
 
-// Add authorization with policies
+// Add authorization with role-based policies
 builder.Services.AddAuthorization(options =>
 {
     // Administrator OR Incident Manager can access admin functions
@@ -77,18 +77,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 // Add authentication middleware
-// Note: This middleware is required for ASP.NET Core's authorization system to work properly.
-// It enables the cookie authentication handler to process authorization challenges (401) and
-// forbidden responses (403) by redirecting to login/access-denied pages. The actual user
-// authentication happens in CustomAuthenticationMiddleware below, which reads the SessionId
-// cookie and sets HttpContext.User. Both middlewares are required in this specific order:
-// 1. UseAuthentication() - Enables challenge/forbid redirects via cookie handler
-// 2. CustomAuthenticationMiddleware - Performs actual authentication via session
-// 3. UseAuthorization() - Checks authorization and triggers challenges when needed
 app.UseAuthentication();
-
-// Add custom authentication middleware
-app.UseMiddleware<CustomAuthenticationMiddleware>();
 
 // Add authorization middleware
 app.UseAuthorization();
