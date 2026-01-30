@@ -3,6 +3,8 @@ using OopsReviewCenter.Components;
 using OopsReviewCenter.Data;
 using OopsReviewCenter.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,6 +85,62 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseAntiforgery();
+
+// Authentication endpoints
+app.MapPost("/auth/login", async (HttpContext context, OopsReviewCenterAA authService) =>
+{
+    var form = await context.Request.ReadFormAsync();
+    var login = form["login"].ToString();
+    var password = form["password"].ToString();
+
+    // Authenticate using the pure AA service
+    var authResult = await authService.AuthenticateAsync(login, password);
+
+    if (!authResult.Success)
+    {
+        // Redirect back to login with error message
+        context.Response.Redirect($"/login?error={Uri.EscapeDataString(authResult.ErrorMessage ?? "Login failed")}");
+        return;
+    }
+
+    // Create claims with the exact role name from the database
+    var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, authResult.UserId.ToString()),
+        new Claim(ClaimTypes.Role, authResult.RoleName ?? ""),
+        new Claim(ClaimTypes.Name, authResult.Username ?? ""),
+    };
+
+    if (!string.IsNullOrEmpty(authResult.FullName))
+    {
+        claims.Add(new Claim(ClaimTypes.GivenName, authResult.FullName));
+    }
+
+    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
+
+    // Sign in with cookie authentication
+    await context.SignInAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme,
+        claimsPrincipal,
+        new AuthenticationProperties
+        {
+            IsPersistent = true,
+            ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+        });
+
+    // Redirect to home page
+    context.Response.Redirect("/");
+});
+
+app.MapPost("/auth/logout", async (HttpContext context) =>
+{
+    // Sign out
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    
+    // Redirect to login page
+    context.Response.Redirect("/login");
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

@@ -1,12 +1,5 @@
 @page "/login"
-@rendermode InteractiveServer
-@using OopsReviewCenter.Services
-@using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.Authentication.Cookies
-@using System.Security.Claims
-@inject OopsReviewCenterAA AuthService
-@inject NavigationManager Navigation
-@inject IHttpContextAccessor HttpContextAccessor
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageTitle>Login - OopsReviewCenter</PageTitle>
 
@@ -25,32 +18,21 @@
                         </div>
                     }
 
-                    <div>
+                    <form method="post" action="/auth/login">
                         <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" id="username" class="form-control" value="@username" @oninput="@((e) => username = e.Value?.ToString() ?? string.Empty)" placeholder="Enter username" />
+                            <label for="login" class="form-label">Username</label>
+                            <input type="text" id="login" name="login" class="form-control" placeholder="Enter username" required autofocus />
                         </div>
 
                         <div class="mb-3">
                             <label for="password" class="form-label">Password</label>
-                            <input type="password" id="password" class="form-control" value="@password" @oninput="@((e) => password = e.Value?.ToString() ?? string.Empty)" placeholder="Enter password" />
+                            <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required />
                         </div>
 
                         <div class="d-grid">
-                            <button type="button" class="btn btn-primary" @onclick="HandleLogin" disabled="@isLoggingIn">
-                                @if (isLoggingIn)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                    <span>Logging in...</span>
-                                }
-                                else
-                                {
-                                    <span>Login</span>
-                                }
-                            </button>
+                            <button type="submit" class="btn btn-primary">Login</button>
                         </div>
-                    </div>
-
+                    </form>
                 </div>
             </div>
         </div>
@@ -58,40 +40,6 @@
 </div>
 
 @code {
-    private string username = string.Empty;
-    private string password = string.Empty;
-    private string? errorMessage;
-    private bool isLoggingIn = false;
-
-    private async Task HandleLogin()
-    {
-        // Set loading state and clear errors
-        isLoggingIn = true;
-        errorMessage = null;
-
-        try
-        {
-            // Authenticate using pure AA service
-            var authResult = await AuthService.AuthenticateAsync(username, password);
-
-            if (!authResult.Success)
-            {
-                errorMessage = authResult.ErrorMessage;
-                return;
-            }
-
-            // Redirect to home page
-            Navigation.NavigateTo("/", forceLoad: true);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = "An unexpected error occurred during login. Please try again later.";
-            // In production, log the exception
-            Console.WriteLine($"Login error: {ex.Message}");
-        }
-        finally
-        {
-            isLoggingIn = false;
-        }
-    }
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? errorMessage { get; set; }
 }
