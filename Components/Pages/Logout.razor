@@ -1,6 +1,6 @@
 @page "/logout"
-@using OopsReviewCenter.Services
-@inject OopsReviewCenterAA AuthService
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
 @inject NavigationManager Navigation
 @inject IHttpContextAccessor HttpContextAccessor
 
@@ -27,7 +27,7 @@
         var httpContext = HttpContextAccessor.HttpContext;
         if (httpContext != null)
         {
-            await AuthService.SignOutAsync(httpContext);
+            await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         }
         
         // Redirect to login page
