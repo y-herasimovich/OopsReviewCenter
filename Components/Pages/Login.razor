@@ -71,13 +71,6 @@
 
         try
         {
-            var httpContext = HttpContextAccessor.HttpContext;
-            if (httpContext == null)
-            {
-                errorMessage = "Unable to authenticate. HTTP context not available.";
-                return;
-            }
-
             // Authenticate using pure AA service
             var authResult = await AuthService.AuthenticateAsync(username, password);
 
@@ -86,32 +79,6 @@
                 errorMessage = authResult.ErrorMessage;
                 return;
             }
-
-            // Create claims from auth result
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, authResult.UserId.ToString()),
-                new Claim(ClaimTypes.Name, authResult.Username ?? authResult.UserId.ToString()),
-                new Claim("FullName", authResult.FullName ?? authResult.Username ?? "User")
-            };
-
-            if (!string.IsNullOrEmpty(authResult.RoleName))
-            {
-                claims.Add(new Claim(ClaimTypes.Role, authResult.RoleName));
-            }
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            // Sign in with cookie authentication
-            await httpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal,
-                new AuthenticationProperties
-                {
-                    IsPersistent = false,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                });
 
             // Redirect to home page
             Navigation.NavigateTo("/", forceLoad: true);
