@@ -54,6 +54,11 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole("Administrator", "Incident Manager", "Developer", "Viewer"));
 });
 
+builder.Services.AddAntiforgery(options =>
+{
+    // Custom antiforgery configuration
+});
+
 // Enable cascade authentication state
 builder.Services.AddCascadingAuthenticationState();
 
@@ -83,6 +88,29 @@ app.UseAuthentication();
 
 // Add authorization middleware
 app.UseAuthorization();
+
+// Skip antiforgery for /auth/* endpoints
+app.Use(async (context, next) =>
+{
+    if (!context.Request.Path.StartsWithSegments("/auth"))
+    {
+        // Enable antiforgery for non-auth routes
+        var antiforgeryFeature = context.Features.Get<Microsoft.AspNetCore.Antiforgery.IAntiforgeryValidationFeature>();
+        if (antiforgeryFeature == null)
+        {
+            await next();
+        }
+        else
+        {
+            await next();
+        }
+    }
+    else
+    {
+        // Skip antiforgery validation for /auth routes
+        await next();
+    }
+});
 
 app.UseAntiforgery();
 
