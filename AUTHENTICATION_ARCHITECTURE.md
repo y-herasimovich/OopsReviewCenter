@@ -31,8 +31,8 @@ The service only **reads** from the database:
 
 Password verification is performed **locally** using the `PasswordHasher` service:
 - PBKDF2 algorithm with 600,000 iterations
-- 256-bit salt (stored in database)
-- 256-bit hash (stored in database)
+- 128-bit salt (16 bytes, stored in database as base64)
+- 256-bit hash (32 bytes, stored in database as base64)
 - Constant-time comparison to prevent timing attacks
 - No external service calls
 
@@ -133,7 +133,7 @@ NO WEB SERVICE CALLS ❌
 **Purpose:** Authenticate a user and create a session
 
 **Operations:**
-1. ✅ Read user from database using EF Core
+1. ✅ Read user from database using EF Core (Users and Roles tables)
 2. ✅ Verify password using local PasswordHasher service
 3. ✅ Check role from database (included with user query)
 4. ✅ Create in-memory session
@@ -189,7 +189,8 @@ private static readonly ConcurrentDictionary<string, UserSession> _sessions = ne
 
 ### Password Security
 - ✅ PBKDF2 with 600,000 iterations
-- ✅ Individual salt per user
+- ✅ 128-bit salt per user (16 bytes)
+- ✅ 256-bit hash (32 bytes)
 - ✅ Constant-time comparison
 - ✅ No plaintext passwords
 
