@@ -20,6 +20,7 @@ OopsReviewCenter now uses a **pure authentication service** design:
 
 2. Seed test data:
    ```bash
+   # The database is created in the project root directory
    sqlite3 oopsreviewcenter.db < scripts/seed-test-data.sql
    ```
 

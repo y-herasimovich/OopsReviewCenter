@@ -35,7 +35,7 @@ public class OopsReviewCenterAA
         // Validate input
         if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
         {
-            return AuthResult.Failed("Username and password are required.");
+            return AuthResult.Failed("Username and password are required");
         }
 
         try
@@ -62,7 +62,7 @@ public class OopsReviewCenterAA
             // Check if user is active
             if (user.IsActive != true)
             {
-                return AuthResult.Failed("User inactive");
+                return AuthResult.Failed("Invalid credentials");
             }
 
             // Validate user has a role

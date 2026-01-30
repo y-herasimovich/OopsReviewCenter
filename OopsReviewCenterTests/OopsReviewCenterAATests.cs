@@ -110,7 +110,7 @@ public class OopsReviewCenterAATests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Be("User inactive");
+        result.ErrorMessage.Should().Be("Invalid credentials");
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class OopsReviewCenterAATests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Be("Username and password are required.");
+        result.ErrorMessage.Should().Be("Username and password are required");
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public class OopsReviewCenterAATests : IDisposable
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Be("Username and password are required.");
+        result.ErrorMessage.Should().Be("Username and password are required");
     }
 
     [Fact]
