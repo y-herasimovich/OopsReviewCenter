@@ -11,10 +11,10 @@
                     <h3 class="text-center">OopsReviewCenter Login</h3>
                 </div>
                 <div class="card-body">
-                    @if (!string.IsNullOrEmpty(errorMessage))
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
                     {
                         <div class="alert alert-danger" role="alert">
-                            @errorMessage
+                            @ErrorMessage
                         </div>
                     }
 
@@ -41,5 +41,5 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "error")]
-    public string? errorMessage { get; set; }
+    public string? ErrorMessage { get; set; }
 }

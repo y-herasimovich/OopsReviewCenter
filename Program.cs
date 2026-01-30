@@ -56,9 +56,8 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddAntiforgery(options =>
 {
-    // We need antiforgery for Razor pages, but not for /auth endpoints
-    // which are plain form POST endpoints that don't use the interactive framework
-    // The validation is bypassed using endpoint-specific filters
+    // Antiforgery is enabled for Razor pages
+    // Auth endpoints at /auth/* disable it using DisableAntiforgery()
 });
 
 // Enable cascade authentication state
@@ -91,14 +90,21 @@ app.UseAuthentication();
 // Add authorization middleware
 app.UseAuthorization();
 
-// Authentication endpoints - mapped before UseAntiforgery to avoid validation
-// Note: These endpoints explicitly disable antiforgery validation since they are
-// plain form POST endpoints that perform their own credential validation
+// Authentication endpoints
+// Note: DisableAntiforgery() is called on these endpoints because they are plain form POST
+// endpoints that perform their own credential validation through OopsReviewCenterAA.
 app.MapPost("/auth/login", async (HttpContext context, OopsReviewCenterAA authService) =>
 {
     var form = await context.Request.ReadFormAsync();
     var login = form["login"].ToString();
     var password = form["password"].ToString();
+
+    // Validate input
+    if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
+    {
+        context.Response.Redirect("/login?error=" + Uri.EscapeDataString("Username and password are required"));
+        return Results.Empty;
+    }
 
     // Authenticate using the pure AA service
     var authResult = await authService.AuthenticateAsync(login, password);
@@ -107,14 +113,21 @@ app.MapPost("/auth/login", async (HttpContext context, OopsReviewCenterAA authSe
     {
         // Redirect back to login with error message
         context.Response.Redirect($"/login?error={Uri.EscapeDataString(authResult.ErrorMessage ?? "Login failed")}");
-        return;
+        return Results.Empty;
+    }
+
+    // Validate role is present
+    if (string.IsNullOrEmpty(authResult.RoleName))
+    {
+        context.Response.Redirect("/login?error=" + Uri.EscapeDataString("User role not assigned"));
+        return Results.Empty;
     }
 
     // Create claims with the exact role name from the database
     var claims = new List<Claim>
     {
         new Claim(ClaimTypes.NameIdentifier, authResult.UserId.ToString()),
-        new Claim(ClaimTypes.Role, authResult.RoleName ?? ""),
+        new Claim(ClaimTypes.Role, authResult.RoleName),
         new Claim(ClaimTypes.Name, authResult.Username ?? ""),
     };
 
@@ -127,6 +140,8 @@ app.MapPost("/auth/login", async (HttpContext context, OopsReviewCenterAA authSe
     var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
     // Sign in with cookie authentication
+    // Note: IsPersistent is set to true with 8-hour expiration for convenience
+    // This creates a persistent cookie that survives browser restarts
     await context.SignInAsync(
         CookieAuthenticationDefaults.AuthenticationScheme,
         claimsPrincipal,
@@ -138,6 +153,7 @@ app.MapPost("/auth/login", async (HttpContext context, OopsReviewCenterAA authSe
 
     // Redirect to home page
     context.Response.Redirect("/");
+    return Results.Empty;
 }).DisableAntiforgery();
 
 app.MapPost("/auth/logout", async (HttpContext context) =>
@@ -147,6 +163,7 @@ app.MapPost("/auth/logout", async (HttpContext context) =>
     
     // Redirect to login page
     context.Response.Redirect("/login");
+    return Results.Empty;
 }).DisableAntiforgery();
 
 app.UseAntiforgery();
