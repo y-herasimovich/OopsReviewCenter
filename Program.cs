@@ -56,7 +56,9 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddAntiforgery(options =>
 {
-    // Custom antiforgery configuration
+    // We need antiforgery for Razor pages, but not for /auth endpoints
+    // which are plain form POST endpoints that don't use the interactive framework
+    // The validation is bypassed using endpoint-specific filters
 });
 
 // Enable cascade authentication state
@@ -89,32 +91,9 @@ app.UseAuthentication();
 // Add authorization middleware
 app.UseAuthorization();
 
-// Skip antiforgery for /auth/* endpoints
-app.Use(async (context, next) =>
-{
-    if (!context.Request.Path.StartsWithSegments("/auth"))
-    {
-        // Enable antiforgery for non-auth routes
-        var antiforgeryFeature = context.Features.Get<Microsoft.AspNetCore.Antiforgery.IAntiforgeryValidationFeature>();
-        if (antiforgeryFeature == null)
-        {
-            await next();
-        }
-        else
-        {
-            await next();
-        }
-    }
-    else
-    {
-        // Skip antiforgery validation for /auth routes
-        await next();
-    }
-});
-
-app.UseAntiforgery();
-
-// Authentication endpoints
+// Authentication endpoints - mapped before UseAntiforgery to avoid validation
+// Note: These endpoints explicitly disable antiforgery validation since they are
+// plain form POST endpoints that perform their own credential validation
 app.MapPost("/auth/login", async (HttpContext context, OopsReviewCenterAA authService) =>
 {
     var form = await context.Request.ReadFormAsync();
@@ -159,7 +138,7 @@ app.MapPost("/auth/login", async (HttpContext context, OopsReviewCenterAA authSe
 
     // Redirect to home page
     context.Response.Redirect("/");
-});
+}).DisableAntiforgery();
 
 app.MapPost("/auth/logout", async (HttpContext context) =>
 {
@@ -168,7 +147,9 @@ app.MapPost("/auth/logout", async (HttpContext context) =>
     
     // Redirect to login page
     context.Response.Redirect("/login");
-});
+}).DisableAntiforgery();
+
+app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
