@@ -1,8 +1,4 @@
 @page "/logout"
-@using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.Authentication.Cookies
-@inject NavigationManager Navigation
-@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>Logout - OopsReviewCenter</PageTitle>
 
@@ -15,22 +11,12 @@
                     <div class="spinner-border text-primary mt-3" role="status">
                         <span class="visually-hidden">Signing out...</span>
                     </div>
+                    <form id="logoutForm" method="post" action="/auth/logout"></form>
+                    <script>
+                        document.getElementById('logoutForm').submit();
+                    </script>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-@code {
-    protected override async Task OnInitializedAsync()
-    {
-        var httpContext = HttpContextAccessor.HttpContext;
-        if (httpContext != null)
-        {
-            await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        }
-        
-        // Redirect to login page
-        Navigation.NavigateTo("/login", forceLoad: true);
-    }
-}

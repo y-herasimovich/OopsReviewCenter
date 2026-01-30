@@ -479,7 +479,7 @@ INSERT INTO IncidentTags (IncidentId, TagId) VALUES
 -- Incident 31: Security + Backend
 (31, 4), (31, 7),
 -- Incident 32: Backend + Database
-(32, 7), (32);
+(32, 7), (32, 1);
 
 -- ============================================================================
 -- Verification Queries (uncomment to run after seeding)
