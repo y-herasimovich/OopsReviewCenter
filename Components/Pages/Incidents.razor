@@ -2,8 +2,9 @@
 @attribute [Authorize(Policy = "CanViewOpsData")]
 @using OopsReviewCenter.Data
 @using OopsReviewCenter.Models
+@using OopsReviewCenter.Services
 @using Microsoft.EntityFrameworkCore
-@inject ApplicationDbContext DbContext
+@inject IncidentService IncidentService
 @inject NavigationManager Navigation
 
 <PageTitle>Incidents - OopsReviewCenter</PageTitle>
@@ -48,12 +49,13 @@ else
                     <th>Title</th>
                     <th>Severity</th>
                     <th>Status</th>
+                    <th>Tags</th>
                     <th>Occurred At</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var incident in filteredIncidents)
+                @foreach (var incident in incidents)
                 {
                     <tr>
                         <td>@incident.Id</td>
@@ -65,6 +67,17 @@ else
                         </td>
                         <td>
                             <span class="badge bg-@GetStatusColor(incident.Status)">@incident.Status</span>
+                        </td>
+                        <td>
+                            @if (incident.IncidentTags.Any())
+                            {
+                                @foreach (var tag in incident.IncidentTags)
+                                {
+                                    <span class="badge" style="background-color: @tag.Tag.Color; margin-right: 3px;">
+                                        @tag.Tag.Name
+                                    </span>
+                                }
+                            }
                         </td>
                         <td>@incident.OccurredAt.ToString("yyyy-MM-dd HH:mm")</td>
                         <td>
@@ -79,32 +92,24 @@ else
 
 @code {
     private List<Incident>? incidents;
-    private List<Incident> filteredIncidents = new();
     private string selectedStatus = "";
 
     protected override async Task OnInitializedAsync()
     {
-        incidents = await DbContext.Incidents
-            .OrderByDescending(i => i.OccurredAt)
-            .ToListAsync();
-        
-        filteredIncidents = incidents;
+        await LoadIncidentsAsync();
     }
 
-    private void FilterByStatus(ChangeEventArgs e)
+    private async Task LoadIncidentsAsync()
+    {
+        incidents = await IncidentService.GetIncidentsAsync(
+            string.IsNullOrEmpty(selectedStatus) ? null : selectedStatus
+        );
+    }
+
+    private async Task FilterByStatus(ChangeEventArgs e)
     {
         selectedStatus = e.Value?.ToString() ?? "";
-        
-        if (incidents == null) return;
-
-        if (string.IsNullOrEmpty(selectedStatus))
-        {
-            filteredIncidents = incidents;
-        }
-        else
-        {
-            filteredIncidents = incidents.Where(i => i.Status == selectedStatus).ToList();
-        }
+        await LoadIncidentsAsync();
     }
 
     private string GetSeverityColor(string severity) => severity switch

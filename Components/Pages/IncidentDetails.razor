@@ -4,10 +4,13 @@
 @using OopsReviewCenter.Models
 @using OopsReviewCenter.Services
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @inject ApplicationDbContext DbContext
+@inject IncidentService IncidentService
 @inject MarkdownExportService ExportService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Incident Details - OopsReviewCenter</PageTitle>
 
@@ -18,14 +21,56 @@
 else
 {
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>@incident.Title</h1>
+        <h1>@(isEditMode ? editTitle : incident.Title)</h1>
         <div>
+            <AuthorizeView Policy="CanEditOpsData">
+                <Authorized>
+                    @if (!isEditMode)
+                    {
+                        <button class="btn btn-primary" @onclick="EnterEditMode">
+                            <span class="bi bi-pencil"></span> Edit
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-success" @onclick="SaveChanges" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span> Saving...</span>
+                            }
+                            else
+                            {
+                                <span class="bi bi-check"></span>
+                                <span> Save</span>
+                            }
+                        </button>
+                        <button class="btn btn-secondary" @onclick="CancelEdit" disabled="@isSaving">Cancel</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
             <button class="btn btn-success" @onclick="ExportToMarkdown">
                 <span class="bi bi-download"></span> Export Markdown
             </button>
             <a href="/incidents" class="btn btn-secondary">Back to List</a>
         </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="@(() => errorMessage = null)"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="@(() => successMessage = null)"></button>
+        </div>
+    }
 
     <div class="row mb-4">
         <div class="col-md-8">
@@ -34,73 +79,145 @@ else
                     <h5>Incident Information</h5>
                 </div>
                 <div class="card-body">
-                    <dl class="row">
-                        <dt class="col-sm-3">ID</dt>
-                        <dd class="col-sm-9">@incident.Id</dd>
-
-                        <dt class="col-sm-3">Severity</dt>
-                        <dd class="col-sm-9">
-                            <span class="badge bg-@GetSeverityColor(incident.Severity)">@incident.Severity</span>
-                        </dd>
-
-                        <dt class="col-sm-3">Status</dt>
-                        <dd class="col-sm-9">
-                            <span class="badge bg-@GetStatusColor(incident.Status)">@incident.Status</span>
-                        </dd>
-
-                        <dt class="col-sm-3">Occurred At</dt>
-                        <dd class="col-sm-9">@incident.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
-
-                        <dt class="col-sm-3">Created At</dt>
-                        <dd class="col-sm-9">@incident.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
-                        @if (incident.ResolvedByUser != null)
-                        {
-                            <dt class="col-sm-3">Resolved By</dt>
-                            <dd class="col-sm-9">
-                                @if (!string.IsNullOrEmpty(incident.ResolvedByUser.FullName))
-                                {
-                                    <span>@incident.ResolvedByUser.FullName</span>
-                                }
-                                else if (!string.IsNullOrEmpty(incident.ResolvedByUser.Username))
-                                {
-                                    <span>@incident.ResolvedByUser.Username</span>
-                                }
-
-                            </dd>
-                        }
-                        @if (incident.ResolvedAt.HasValue)
-                        {
-                            <dt class="col-sm-3">Resolved At</dt>
-                            <dd class="col-sm-9">@incident.ResolvedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
-                        }
-
-                        @if (incident.IncidentTags.Any())
-                        {
-                            <dt class="col-sm-3">Tags</dt>
-                            <dd class="col-sm-9">
-                                @foreach (var tag in incident.IncidentTags)
-                                {
-                                    <span class="badge" style="background-color: @tag.Tag.Color; margin-right: 5px;">
-                                        @tag.Tag.Name
-                                    </span>
-                                }
-                            </dd>
-                        }
-                    </dl>
-
-                    <h6>Description</h6>
-                    <p>@incident.Description</p>
-
-                    @if (!string.IsNullOrEmpty(incident.Impact))
+                    @if (isEditMode)
                     {
-                        <h6>Impact</h6>
-                        <p>@incident.Impact</p>
+                        <div class="mb-3">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" @bind="editTitle" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" rows="4" @bind="editDescription"></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Severity</label>
+                                <select class="form-select" @bind="editSeverity">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Critical">Critical</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" @bind="editStatus">
+                                    <option value="Open">Open</option>
+                                    <option value="Investigating">Investigating</option>
+                                    <option value="Resolved">Resolved</option>
+                                    <option value="Closed">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Tags</label>
+                            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                                @if (availableTags != null && availableTags.Any())
+                                {
+                                    @foreach (var tag in availableTags)
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="tag-@tag.Id"
+                                                   checked="@editSelectedTagIds.Contains(tag.Id)"
+                                                   @onchange="@(e => ToggleTag(tag.Id, (bool)e.Value!))" />
+                                            <label class="form-check-label" for="tag-@tag.Id">
+                                                <span class="badge" style="background-color: @tag.Color;">@tag.Name</span>
+                                            </label>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted mb-0">No tags available. Create tags in the Admin section.</p>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Impact</label>
+                            <textarea class="form-control" rows="3" @bind="editImpact"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Root Cause</label>
+                            <textarea class="form-control" rows="3" @bind="editRootCause"></textarea>
+                        </div>
                     }
-
-                    @if (!string.IsNullOrEmpty(incident.RootCause))
+                    else
                     {
-                        <h6>Root Cause</h6>
-                        <p>@incident.RootCause</p>
+                        <dl class="row">
+                            <dt class="col-sm-3">ID</dt>
+                            <dd class="col-sm-9">@incident.Id</dd>
+
+                            <dt class="col-sm-3">Severity</dt>
+                            <dd class="col-sm-9">
+                                <span class="badge bg-@GetSeverityColor(incident.Severity)">@incident.Severity</span>
+                            </dd>
+
+                            <dt class="col-sm-3">Status</dt>
+                            <dd class="col-sm-9">
+                                <span class="badge bg-@GetStatusColor(incident.Status)">@incident.Status</span>
+                            </dd>
+
+                            <dt class="col-sm-3">Occurred At</dt>
+                            <dd class="col-sm-9">@incident.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
+
+                            <dt class="col-sm-3">Created At</dt>
+                            <dd class="col-sm-9">@incident.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
+
+                            @if (incident.ResolvedByUser != null)
+                            {
+                                <dt class="col-sm-3">Resolved By</dt>
+                                <dd class="col-sm-9">
+                                    @if (!string.IsNullOrEmpty(incident.ResolvedByUser.FullName))
+                                    {
+                                        <span>@incident.ResolvedByUser.FullName</span>
+                                    }
+                                    else if (!string.IsNullOrEmpty(incident.ResolvedByUser.Username))
+                                    {
+                                        <span>@incident.ResolvedByUser.Username</span>
+                                    }
+                                </dd>
+                            }
+
+                            @if (incident.ResolvedAt.HasValue)
+                            {
+                                <dt class="col-sm-3">Resolved At</dt>
+                                <dd class="col-sm-9">@incident.ResolvedAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</dd>
+                            }
+
+                            @if (incident.IncidentTags.Any())
+                            {
+                                <dt class="col-sm-3">Tags</dt>
+                                <dd class="col-sm-9">
+                                    @foreach (var tag in incident.IncidentTags)
+                                    {
+                                        <span class="badge" style="background-color: @tag.Tag.Color; margin-right: 5px;">
+                                            @tag.Tag.Name
+                                        </span>
+                                    }
+                                </dd>
+                            }
+                        </dl>
+
+                        <h6>Description</h6>
+                        <p>@incident.Description</p>
+
+                        @if (!string.IsNullOrEmpty(incident.Impact))
+                        {
+                            <h6>Impact</h6>
+                            <p>@incident.Impact</p>
+                        }
+
+                        @if (!string.IsNullOrEmpty(incident.RootCause))
+                        {
+                            <h6>Root Cause</h6>
+                            <p>@incident.RootCause</p>
+                        }
                     }
                 </div>
             </div>
@@ -176,16 +293,172 @@ else
     public int Id { get; set; }
 
     private Incident? incident;
+    private List<Tag>? availableTags;
+
+    // Edit mode fields
+    private bool isEditMode = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private string editTitle = "";
+    private string editDescription = "";
+    private string editStatus = "";
+    private string editSeverity = "";
+    private string? editRootCause;
+    private string? editImpact;
+    private List<int> editSelectedTagIds = new();
+
+    // User info
+    private int? currentUserId;
+    private string? currentUsername;
 
     protected override async Task OnInitializedAsync()
     {
-        incident = await DbContext.Incidents
-            .Include(i => i.TimelineEvents)
-            .Include(i => i.ActionItems)
-            .Include(i => i.IncidentTags)
-            .ThenInclude(it => it.Tag)
-            .Include(i => i.ResolvedByUser)
-            .FirstOrDefaultAsync(i => i.Id == Id);
+        await LoadIncidentAsync();
+        await LoadUserInfoAsync();
+    }
+
+    private async Task LoadIncidentAsync()
+    {
+        incident = await IncidentService.GetIncidentByIdAsync(Id);
+    }
+
+    private async Task LoadUserInfoAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
+            {
+                currentUserId = userId;
+            }
+
+            var nameClaim = user.FindFirst(ClaimTypes.Name);
+            currentUsername = nameClaim?.Value;
+        }
+    }
+
+    private async Task EnterEditMode()
+    {
+        if (incident == null) return;
+
+        isEditMode = true;
+        errorMessage = null;
+        successMessage = null;
+
+        // Load available tags
+        availableTags = await IncidentService.GetAllTagsAsync();
+
+        // Initialize edit fields
+        editTitle = incident.Title;
+        editDescription = incident.Description;
+        editStatus = incident.Status;
+        editSeverity = incident.Severity;
+        editRootCause = incident.RootCause;
+        editImpact = incident.Impact;
+        editSelectedTagIds = incident.IncidentTags.Select(it => it.TagId).ToList();
+    }
+
+    private void CancelEdit()
+    {
+        isEditMode = false;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private void ToggleTag(int tagId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            if (!editSelectedTagIds.Contains(tagId))
+            {
+                editSelectedTagIds.Add(tagId);
+            }
+        }
+        else
+        {
+            editSelectedTagIds.Remove(tagId);
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        if (incident == null) return;
+
+        isSaving = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(editTitle))
+            {
+                errorMessage = "Title is required";
+                isSaving = false;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(editDescription))
+            {
+                errorMessage = "Description is required";
+                isSaving = false;
+                return;
+            }
+
+            // Update incident information
+            var updateSuccess = await IncidentService.UpdateIncidentInfoAsync(
+                Id,
+                editTitle,
+                editDescription,
+                editStatus,
+                editSeverity,
+                editRootCause,
+                editImpact,
+                currentUserId,
+                currentUsername
+            );
+
+            if (!updateSuccess)
+            {
+                errorMessage = "Failed to update incident";
+                isSaving = false;
+                return;
+            }
+
+            // Update tags
+            var tagsSuccess = await IncidentService.UpdateIncidentTagsAsync(
+                Id,
+                editSelectedTagIds,
+                currentUserId,
+                currentUsername
+            );
+
+            if (!tagsSuccess)
+            {
+                errorMessage = "Failed to update tags";
+                isSaving = false;
+                return;
+            }
+
+            // Reload incident to reflect changes
+            await LoadIncidentAsync();
+
+            isEditMode = false;
+            successMessage = "Changes saved successfully";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving changes: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
     private async Task ExportToMarkdown()
