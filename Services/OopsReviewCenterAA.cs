@@ -56,19 +56,19 @@ public class OopsReviewCenterAA
             // User not found
             if (user == null)
             {
-                return AuthResult.Failed("Invalid credentials");
+                return AuthResult.Failed("User not found.");
             }
 
             // Check if user is active
             if (user.IsActive != true)
             {
-                return AuthResult.Failed("Invalid credentials");
+                return AuthResult.Failed("User is not activated.");
             }
 
             // Validate user has a role
             if (user.Role == null)
             {
-                return AuthResult.Failed("Invalid credentials");
+                return AuthResult.Failed("User role is not assigned.");
             }
 
             // Verify password using constant-time comparison
