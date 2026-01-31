@@ -35,6 +35,78 @@ public class IncidentService
     }
 
     /// <summary>
+    /// Get paged incidents with filtering and sorting
+    /// </summary>
+    public async Task<PagedIncidentsResult> GetIncidentsPagedAsync(
+        int page = 1,
+        int pageSize = 25,
+        string? statusFilter = null,
+        string? severityFilter = null,
+        List<int>? tagIds = null,
+        bool showResolved = false)
+    {
+        var query = _dbContext.Incidents
+            .Include(i => i.IncidentTags)
+            .ThenInclude(it => it.Tag)
+            .AsQueryable();
+
+        // Apply filters
+        // Default: hide Resolved incidents unless explicitly requested
+        if (!showResolved && string.IsNullOrEmpty(statusFilter))
+        {
+            query = query.Where(i => i.Status != "Resolved");
+        }
+        else if (!string.IsNullOrEmpty(statusFilter))
+        {
+            // If status filter is set, use it (overrides showResolved)
+            query = query.Where(i => i.Status == statusFilter);
+        }
+
+        if (!string.IsNullOrEmpty(severityFilter))
+        {
+            query = query.Where(i => i.Severity == severityFilter);
+        }
+
+        if (tagIds != null && tagIds.Any())
+        {
+            // Filter incidents that have ANY of the selected tags
+            query = query.Where(i => i.IncidentTags.Any(it => tagIds.Contains(it.TagId)));
+        }
+
+        // Get total count before paging
+        var totalCount = await query.CountAsync();
+
+        // Apply sorting with explicit ordering
+        // Primary: Severity (Critical > High > Medium > Low)
+        // Secondary: Status (Open/Investigating before Resolved/Closed)
+        // Tertiary: OccurredAt (most recent first)
+        query = query
+            .OrderBy(i => i.Severity == "Critical" ? 0 :
+                          i.Severity == "High" ? 1 :
+                          i.Severity == "Medium" ? 2 :
+                          i.Severity == "Low" ? 3 : 4)
+            .ThenBy(i => i.Status == "Open" ? 0 :
+                         i.Status == "Investigating" ? 1 :
+                         i.Status == "Resolved" ? 2 :
+                         i.Status == "Closed" ? 3 : 4)
+            .ThenByDescending(i => i.OccurredAt);
+
+        // Apply paging
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedIncidentsResult
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    /// <summary>
     /// Get a single incident by ID with all related data
     /// </summary>
     public async Task<Incident?> GetIncidentByIdAsync(int incidentId)

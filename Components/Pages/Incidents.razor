@@ -21,21 +21,62 @@
     </AuthorizeView>
 </div>
 
-@if (incidents == null)
+@if (pagedResult == null || availableTags == null)
 {
     <p><em>Loading...</em></p>
 }
 else
 {
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <label class="form-label">Filter by Status:</label>
+            <select class="form-select" @bind="selectedStatus" @bind:after="OnFilterChanged">
+                <option value="">All</option>
+                <option value="Open">Open</option>
+                <option value="Investigating">Investigating</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Filter by Severity:</label>
+            <select class="form-select" @bind="selectedSeverity" @bind:after="OnFilterChanged">
+                <option value="">All</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Filter by Tags:</label>
+            <select class="form-select" @bind="selectedTagId" @bind:after="OnFilterChanged">
+                <option value="0">All</option>
+                @foreach (var tag in availableTags)
+                {
+                    <option value="@tag.Id">@tag.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Page Size:</label>
+            <select class="form-select" @bind="pageSize" @bind:after="OnPageSizeChanged">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="250">250</option>
+            </select>
+        </div>
+    </div>
+
     <div class="mb-3">
-        <label class="form-label">Filter by Status:</label>
-        <select class="form-select" @onchange="FilterByStatus" style="width: 200px;">
-            <option value="">All</option>
-            <option value="Open">Open</option>
-            <option value="Investigating">Investigating</option>
-            <option value="Resolved">Resolved</option>
-            <option value="Closed">Closed</option>
-        </select>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showResolved" @bind="showResolved" @bind:after="OnFilterChanged">
+            <label class="form-check-label" for="showResolved">
+                Show Resolved incidents
+            </label>
+        </div>
     </div>
 
     <div class="table-responsive">
@@ -52,7 +93,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var incident in incidents)
+                @foreach (var incident in pagedResult.Items)
                 {
                     <tr>
                         <td>@incident.Id</td>
@@ -85,28 +126,90 @@ else
             </tbody>
         </table>
     </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+            Showing @((pagedResult.Page - 1) * pagedResult.PageSize + 1) 
+            to @(Math.Min(pagedResult.Page * pagedResult.PageSize, pagedResult.TotalCount)) 
+            of @pagedResult.TotalCount incidents
+        </div>
+        <div>
+            <nav aria-label="Incidents pagination">
+                <ul class="pagination mb-0">
+                    <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="GoToPreviousPage" disabled="@(currentPage <= 1)">Previous</button>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Page @currentPage of @pagedResult.TotalPages</span>
+                    </li>
+                    <li class="page-item @(currentPage >= pagedResult.TotalPages ? "disabled" : "")">
+                        <button class="page-link" @onclick="GoToNextPage" disabled="@(currentPage >= pagedResult.TotalPages)">Next</button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
 }
 
 @code {
-    private List<Incident>? incidents;
+    private PagedIncidentsResult? pagedResult;
+    private List<Tag>? availableTags;
+    
     private string selectedStatus = "";
+    private string selectedSeverity = "";
+    private int selectedTagId = 0;
+    private bool showResolved = false;
+    private int currentPage = 1;
+    private int pageSize = 25;
 
     protected override async Task OnInitializedAsync()
     {
+        availableTags = await IncidentService.GetAllTagsAsync();
         await LoadIncidentsAsync();
     }
 
     private async Task LoadIncidentsAsync()
     {
-        incidents = await IncidentService.GetIncidentsAsync(
-            string.IsNullOrEmpty(selectedStatus) ? null : selectedStatus
+        var tagIds = selectedTagId > 0 ? new List<int> { selectedTagId } : null;
+        
+        pagedResult = await IncidentService.GetIncidentsPagedAsync(
+            page: currentPage,
+            pageSize: pageSize,
+            statusFilter: string.IsNullOrEmpty(selectedStatus) ? null : selectedStatus,
+            severityFilter: string.IsNullOrEmpty(selectedSeverity) ? null : selectedSeverity,
+            tagIds: tagIds,
+            showResolved: showResolved
         );
     }
 
-    private async Task FilterByStatus(ChangeEventArgs e)
+    private async Task OnFilterChanged()
     {
-        selectedStatus = e.Value?.ToString() ?? "";
+        currentPage = 1; // Reset to first page when filters change
         await LoadIncidentsAsync();
+    }
+
+    private async Task OnPageSizeChanged()
+    {
+        currentPage = 1; // Reset to first page when page size changes
+        await LoadIncidentsAsync();
+    }
+
+    private async Task GoToPreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadIncidentsAsync();
+        }
+    }
+
+    private async Task GoToNextPage()
+    {
+        if (pagedResult != null && currentPage < pagedResult.TotalPages)
+        {
+            currentPage++;
+            await LoadIncidentsAsync();
+        }
     }
 
     private string GetSeverityColor(string severity) => severity switch
