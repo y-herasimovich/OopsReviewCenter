@@ -106,7 +106,7 @@
                     @foreach (var action in actionItems)
                     {
                         <div class="mb-3 border-bottom pb-2">
-                            <input type="text" @bind="action.Title" class="form-control mb-2" placeholder="Title *" />
+                            <input type="text" @bind="action.Title" class="form-control mb-2" placeholder="Title *" required />
                             <textarea @bind="action.Description" class="form-control mb-2" rows="2" placeholder="Description"></textarea>
                             <div class="row mb-2">
                                 <div class="col-6">
@@ -124,7 +124,7 @@
                                 </div>
                             </div>
                             <input type="text" @bind="action.AssignedTo" class="form-control mb-2" placeholder="Assigned To" />
-                            <input type="date" @bind="action.DueDate" class="form-control mb-2" />
+                            <input type="date" @bind="action.DueDate" class="form-control mb-2" placeholder="Due Date" />
                             <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveActionItem(action)">Remove</button>
                         </div>
                     }
