@@ -22,6 +22,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Add services
 builder.Services.AddScoped<MarkdownExportService>();
+builder.Services.AddScoped<IncidentService>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddScoped<OopsReviewCenterAA>();
 builder.Services.AddHttpContextAccessor();
