@@ -13,7 +13,7 @@
     <a href="/incidents" class="btn btn-secondary">Cancel</a>
 </div>
 
-<EditForm Model="@incident" OnValidSubmit="@HandleSubmit">
+<EditForm Model="@incident" OnValidSubmit="@HandleSubmit" FormName="NewIncidentForm">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
@@ -99,20 +99,36 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
-                    <h5>Timeline Events</h5>
+                    <h5>Action Items</h5>
                 </div>
                 <div class="card-body">
-                    @foreach (var evt in timelineEvents)
+                    @foreach (var action in actionItems)
                     {
                         <div class="mb-3 border-bottom pb-2">
-                            <input type="datetime-local" @bind="evt.OccurredAt" class="form-control mb-2" />
-                            <textarea @bind="evt.Description" class="form-control mb-2" rows="2" placeholder="Description"></textarea>
-                            <input type="text" @bind="evt.Author" class="form-control mb-2" placeholder="Author" />
-                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveTimelineEvent(evt)">Remove</button>
+                            <input type="text" @bind="action.Title" class="form-control mb-2" placeholder="Title *" />
+                            <textarea @bind="action.Description" class="form-control mb-2" rows="2" placeholder="Description"></textarea>
+                            <div class="row mb-2">
+                                <div class="col-6">
+                                    <select @bind="action.Priority" class="form-select form-select-sm">
+                                        <option value="Low">Low</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="High">High</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select @bind="action.Status" class="form-select form-select-sm">
+                                        <option value="Open">Open</option>
+                                        <option value="In Progress">In Progress</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="text" @bind="action.AssignedTo" class="form-control mb-2" placeholder="Assigned To" />
+                            <input type="date" @bind="action.DueDate" class="form-control mb-2" />
+                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveActionItem(action)">Remove</button>
                         </div>
                     }
-                    <button type="button" class="btn btn-sm btn-secondary" @onclick="AddTimelineEvent">
-                        Add Timeline Event
+                    <button type="button" class="btn btn-sm btn-secondary" @onclick="AddActionItem">
+                        <span class="bi bi-plus"></span> Add Action Item
                     </button>
                 </div>
             </div>
@@ -132,19 +148,11 @@
     private string occurredAtTime = DateTime.Now.ToString("HH:mm");
     private List<Tag>? availableTags;
     private HashSet<int> selectedTagIds = new();
-    private List<TimelineEvent> timelineEvents = new();
+    private List<ActionItem> actionItems = new();
 
     protected override async Task OnInitializedAsync()
     {
         availableTags = await DbContext.Tags.ToListAsync();
-        
-        // Add initial timeline event
-        timelineEvents.Add(new TimelineEvent 
-        { 
-            OccurredAt = DateTime.UtcNow,
-            Description = "",
-            Author = "System"
-        });
     }
 
     private void ToggleTag(int tagId)
@@ -155,19 +163,19 @@
             selectedTagIds.Add(tagId);
     }
 
-    private void AddTimelineEvent()
+    private void AddActionItem()
     {
-        timelineEvents.Add(new TimelineEvent 
+        actionItems.Add(new ActionItem 
         { 
-            OccurredAt = DateTime.UtcNow,
-            Description = "",
-            Author = ""
+            Priority = "Medium",
+            Status = "Open",
+            CreatedAt = DateTime.UtcNow
         });
     }
 
-    private void RemoveTimelineEvent(TimelineEvent evt)
+    private void RemoveActionItem(ActionItem action)
     {
-        timelineEvents.Remove(evt);
+        actionItems.Remove(action);
     }
 
     private async Task HandleSubmit()
@@ -198,11 +206,12 @@
             });
         }
 
-        // Add timeline events
-        foreach (var evt in timelineEvents.Where(e => !string.IsNullOrWhiteSpace(e.Description)))
+        // Add action items
+        foreach (var action in actionItems.Where(a => !string.IsNullOrWhiteSpace(a.Title)))
         {
-            evt.IncidentId = incident.Id;
-            DbContext.TimelineEvents.Add(evt);
+            action.IncidentId = incident.Id;
+            action.CreatedAt = DateTime.UtcNow;
+            DbContext.ActionItems.Add(action);
         }
 
         await DbContext.SaveChangesAsync();
