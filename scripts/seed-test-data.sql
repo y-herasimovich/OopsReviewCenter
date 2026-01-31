@@ -70,8 +70,8 @@ INSERT INTO Users (UserId, RoleId, Username, Email, FullName, PasswordHash, Salt
 (4, 3, 'bwilson', 'bob.wilson@oopsreview.com', 'Bob Wilson', 'dummyhash4', 'dummysalt4', 1),
 (5, 3, 'slee', 'sarah.lee@oopsreview.com', 'Sarah Lee', 'dummyhash5', 'dummysalt5', 1),
 (6, 3, 'dchen', 'david.chen@oopsreview.com', 'David Chen', 'dummyhash6', 'dummysalt6', 1),
---viewer password: PasswordTestUSER!!!
 (7, 4, 'viewer', 'viewer@oopsreview.com', 'Guest Viewer', 'deZySnHC+eSCqzx1XUc+HdOFCzOvpc0UhqYXXtj2U5Y=', 'V349IS4Ym9KaKHehuXNutg==', 1),
+--viewer password: PasswordTestUSER!!!
 (8, 3, 'aparker', 'alice.parker@oopsreview.com', 'Alice Parker', 'dummyhash8', 'dummysalt8', 1);
 
 -- ============================================================================
