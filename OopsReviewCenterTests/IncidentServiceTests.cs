@@ -297,4 +297,287 @@ public class IncidentServiceTests : IDisposable
         result[1].Name.Should().Be("Bravo");
         result[2].Name.Should().Be("Charlie");
     }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldReturnPagedResults()
+    {
+        // Arrange
+        for (int i = 1; i <= 30; i++)
+        {
+            _context.Incidents.Add(new Incident
+            {
+                Title = $"Incident {i}",
+                Description = "Test",
+                OccurredAt = DateTime.UtcNow.AddHours(-i),
+                CreatedAt = DateTime.UtcNow,
+                Status = "Open",
+                Severity = "Medium"
+            });
+        }
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetIncidentsPagedAsync(page: 1, pageSize: 10);
+
+        // Assert
+        result.Items.Should().HaveCount(10);
+        result.TotalCount.Should().Be(30);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(10);
+        result.TotalPages.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldHideResolvedByDefault()
+    {
+        // Arrange
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Open Incident",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Resolved Incident",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Resolved",
+            Severity = "High"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act - Don't show resolved
+        var result = await _service.GetIncidentsPagedAsync(showResolved: false);
+
+        // Assert
+        result.TotalCount.Should().Be(1);
+        result.Items[0].Status.Should().Be("Open");
+    }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldShowResolvedWhenRequested()
+    {
+        // Arrange
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Open Incident",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Resolved Incident",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Resolved",
+            Severity = "High"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act - Show resolved
+        var result = await _service.GetIncidentsPagedAsync(showResolved: true);
+
+        // Assert
+        result.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldFilterBySeverity()
+    {
+        // Arrange
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Critical Incident",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "Critical"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Low Incident",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "Low"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetIncidentsPagedAsync(severityFilter: "Critical");
+
+        // Assert
+        result.TotalCount.Should().Be(1);
+        result.Items[0].Severity.Should().Be("Critical");
+    }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldFilterByTags()
+    {
+        // Arrange
+        var tag1 = new Tag { Name = "Database", Color = "#FF0000", CreatedAt = DateTime.UtcNow };
+        var tag2 = new Tag { Name = "Network", Color = "#00FF00", CreatedAt = DateTime.UtcNow };
+        _context.Tags.AddRange(tag1, tag2);
+        await _context.SaveChangesAsync();
+
+        var incident1 = new Incident
+        {
+            Title = "DB Issue",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        };
+        var incident2 = new Incident
+        {
+            Title = "Network Issue",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        };
+        _context.Incidents.AddRange(incident1, incident2);
+        await _context.SaveChangesAsync();
+
+        _context.IncidentTags.Add(new IncidentTag { IncidentId = incident1.Id, TagId = tag1.Id });
+        _context.IncidentTags.Add(new IncidentTag { IncidentId = incident2.Id, TagId = tag2.Id });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetIncidentsPagedAsync(tagIds: new List<int> { tag1.Id });
+
+        // Assert
+        result.TotalCount.Should().Be(1);
+        result.Items[0].Title.Should().Be("DB Issue");
+    }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldSortBySeverityFirst()
+    {
+        // Arrange
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Low Priority",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "Low"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Critical Issue",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "Critical"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "High Priority",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetIncidentsPagedAsync();
+
+        // Assert
+        result.Items[0].Severity.Should().Be("Critical");
+        result.Items[1].Severity.Should().Be("High");
+        result.Items[2].Severity.Should().Be("Low");
+    }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldSortByStatusSecondary()
+    {
+        // Arrange
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Closed Issue",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Closed",
+            Severity = "High"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Open Issue",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Investigating Issue",
+            Description = "Test",
+            OccurredAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            Status = "Investigating",
+            Severity = "High"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetIncidentsPagedAsync(showResolved: true);
+
+        // Assert
+        result.Items[0].Status.Should().Be("Open");
+        result.Items[1].Status.Should().Be("Investigating");
+        result.Items[2].Status.Should().Be("Closed");
+    }
+
+    [Fact]
+    public async Task GetIncidentsPagedAsync_ShouldSortByOccurredAtTertiary()
+    {
+        // Arrange
+        var now = DateTime.UtcNow;
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Older",
+            Description = "Test",
+            OccurredAt = now.AddHours(-2),
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        });
+        _context.Incidents.Add(new Incident
+        {
+            Title = "Newer",
+            Description = "Test",
+            OccurredAt = now.AddHours(-1),
+            CreatedAt = DateTime.UtcNow,
+            Status = "Open",
+            Severity = "High"
+        });
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetIncidentsPagedAsync();
+
+        // Assert
+        result.Items[0].Title.Should().Be("Newer");
+        result.Items[1].Title.Should().Be("Older");
+    }
 }
